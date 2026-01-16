@@ -4,20 +4,15 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin TIM</title>
+    <title>AMC PKU Logbook</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
-        @media print { .no-print { display: none !important; } }
-
-         .hidden { display: none; }
+       .hidden { display: none; }
         .form-check-input { cursor: pointer; border: 1px solid #0d6efd; }
         
         /* Sidebar Styles */
         #sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
             min-width: 250px;
             max-width: 250px;
             background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%);
@@ -25,28 +20,27 @@
             transition: all 0.3s;
             min-height: 100vh;
             box-shadow: 2px 0 5px rgba(0,0,0,0.1);
-            z-index: 1000;
         }
-
+        
         #sidebar.active {
-            left: -250px !important;
+            margin-left: -250px;
         }
-
+        
         #sidebar .sidebar-header {
             padding: 20px;
             background: rgba(0,0,0,0.2);
         }
-
+        
         #sidebar ul.components {
             padding: 20px 0;
         }
-
+        
         #sidebar ul li {
             padding: 10px;
             font-size: 1.1em;
             display: block;
         }
-
+        
         #sidebar ul li a {
             padding: 10px 15px;
             font-size: 1em;
@@ -56,34 +50,28 @@
             transition: all 0.3s;
             border-radius: 5px;
         }
-
+        
         #sidebar ul li a:hover,
         #sidebar ul li a.active {
             color: #fff;
             background: rgba(255,255,255,0.1);
         }
-
+        
         #sidebar ul li a i {
             margin-right: 10px;
         }
-
+        
         #content {
-            margin-left: 250px;
-            width: calc(100% - 250px);
+            width: 100%;
             padding: 20px;
             min-height: 100vh;
             transition: all 0.3s;
         }
-
-        #sidebar.active ~ #content {
-            margin-left: 0 !important;
-            width: 100% !important;
-        }
-
+        
         .wrapper {
+            display: flex;
             width: 100%;
-            position: relative;
-            overflow-x: hidden;
+            align-items: stretch;
         }
         
         #sidebarCollapse {
@@ -99,7 +87,28 @@
         #sidebarCollapse:hover {
             background: #2a5298;
         }
+        
+        /* CSS KHUSUS CETAK */
+        @media print {
+            body * { visibility: hidden; }
+            #printArea, #printArea * { visibility: visible; }
+            #printArea {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white;
+                display: block !important;
+            }
+            .page-break { page-break-after: always; }
+            .no-print { display: none !important; }
+            #sidebar { display: none !important; }
+            #sidebarCollapse { display: none !important; }
+        }
 
+        .card-header { font-weight: bold; background-color: #f8f9fa; }
+        .table-striped > tbody > tr:nth-of-type(odd) { --bs-table-accent-bg: rgba(0, 0, 0, 0.02); }
+        .img-preview { max-width: 60px; height: auto; border-radius: 5px; border: 1px solid #ddd; margin: 2px; }
     </style>
 </head>
 <body class="bg-light">
@@ -110,12 +119,11 @@
         <div class="sidebar-header">
             <h3><i class="bi bi-building-gear"></i> AMC</h3>
             <p class="mb-0">Sultan Syarif Kasim II</p>
-            <small id="userEmail" class="text-white-50"></small>
         </div>
 
         <ul class="list-unstyled components">
-            <li>
-                 <a href="dashboard.html">
+             <li>
+                <a href="dashboard.html">
                     <i class="bi bi-house"></i> Dashboard
                 </a>
             </li>
@@ -125,12 +133,12 @@
                 </a>
             </li>
             <li>
-                 <a href="logbook.html">
+                <a href="#" onclick="showHome(); setActiveMenu(this); return false;" class="active">
                     <i class="bi bi-journal-check"></i> Logbook
                 </a>
             </li>
             <li>
-                 <a href="#" onclick="showHome(); setActiveMenu(this); return false;" class="active">
+                <a href="admintim.html">
                     <i class="bi bi-display"></i> Admin TIM
                 </a>
             </li>
@@ -148,183 +156,354 @@
 
     <!-- Page Content -->
     <div id="content">
-        <button type="button" id="sidebarCollapse" class="btn mb-3" onclick="toggleSidebar()">
+        <button type="button" id="sidebarCollapse" class="btn mb-3">
             <i class="bi bi-list"></i> Toggle Menu
         </button>
 
-        <div id="homePage">
-    
-    <div class="card p-4 mb-4 no-print border-warning border-2">
-        <h4 class="text-warning text-dark">🔔 Permintaan Tiket Masuk</h4>
-        <p class="text-muted">Klik tombol "Generate" lalu berikan kodenya kepada peserta.</p>
-        <div class="table-responsive">
-            <table class="table table-hover">
-                <thead class="table-light">
-                    <tr>
-                        <th>Waktu Request</th>
-                        <th>Nama Peserta</th>
-                        <th>Perusahaan</th>
-                        <th>Aksi</th>
-                    </tr>
-                </thead>
-                <tbody id="request-table-body">
-                    </tbody>
-            </table>
+            <div id="homePage">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0 text-primary"><i class="bi bi-journal-check"></i> Daily Logbook</h3>
+                    <button class="btn btn-primary shadow-sm" onclick="showForm()"><i class="bi bi-plus-lg"></i> Tambah Log</button>
+                </div>
+            </div>
+                <div class="card shadow-sm border-0 mb-4 no-print">
+                    <div class="card-body row g-3 align-items-end">
+                        <div class="col-md-4">
+                            <label class="small fw-bold">Dari Tanggal</label>
+                            <input type="date" id="filterFrom" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="small fw-bold">Sampai Tanggal</label>
+                            <input type="date" id="filterTo" class="form-control">
+                        </div>
+                        <div class="col-md-4">
+                            <button class="btn btn-outline-dark w-100" onclick="fetchForPrint()"><i class="bi bi-printer"></i> Cetak Rekap</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th class="ps-3">Waktu & Area</th>
+                                    <th>Petugas</th>
+                                    <th>Keterangan</th>
+                                    <th>Foto</th>
+                                    <th class="text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="logTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+    <div id="formPage" class="hidden">
+        <div class="card shadow border-0 p-4">
+            <div class="d-flex justify-content-between mb-4">
+                <h4>Input Logbook Baru</h4>
+                <button class="btn-close" onclick="showHome()"></button>
+            </div>
+            <form id="logForm" onsubmit="return handleSubmit(event)">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Tanggal & Jam</label>
+                        <div class="input-group">
+                            <input type="date" id="inDate" class="form-control" required>
+                            <input type="time" id="inTime" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Area Pengecekan</label>
+                        <select id="logArea" class="form-select" required>
+                            <option value="">-- Pilih Area --</option>
+                            <option value="Airside">Airside</option>
+                            <option value="Apron">Apron</option>
+                            <option value="Runway">Runway</option>
+                            <option value="Taxiway">Taxiway</option>
+                            <option value="Service Road">Service Road</option>
+                            <option value="Access Road">Access Road</option>
+                            <option value="Make up Area">Make Up Area</option>
+                            <option value="Break Down Area">Break Down Area</option>
+                        </select>
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label fw-bold">Nama Petugas</label>
+                        <div id="staffList" class="mt-2"></div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="addStaffRow()">+ Tambah Petugas</button>
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label fw-bold">Keterangan</label>
+                        <textarea id="inDesc" class="form-control" rows="3" required></textarea>
+                    </div>
+                    <div class="col-md-12">
+                        <label class="form-label fw-bold">Dokumentasi Foto</label>
+                        <div id="photoList">
+                            <input type="file" class="form-control mb-2 photo-input" accept="image/*" onchange="handleFile(this)">
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="addPhotoRow()">+ Tambah Foto</button>
+                        <div id="previewBox" class="mt-2 d-flex flex-wrap"></div>
+                    </div>
+                </div>
+                <hr class="my-4">
+                <div class="text-end">
+                    <button type="button" class="btn btn-secondary px-4" onclick="showHome()">Batal</button>
+                    <button type="submit" id="btnSubmit" class="btn btn-success px-5">Simpan Data</button>
+                </div>
+            </form>
         </div>
     </div>
 
-    <div class="card p-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h4>📋 Rekapitulasi Hasil Ujian</h4>
-            <button class="btn btn-danger btn-sm no-print" onclick="resetSystem()">Reset Semua Data</button>
-        </div>
-
-        <div class="row g-3 mb-4 no-print bg-white p-3 border rounded">
-            <div class="col-md-3">
-                <label>Dari Tanggal</label>
-                <input type="date" class="form-control" id="filter-start">
-            </div>
-            <div class="col-md-3">
-                <label>Sampai Tanggal</label>
-                <input type="date" class="form-control" id="filter-end">
-            </div>
-            <div class="col-md-3 d-flex align-items-end">
-                <button class="btn btn-primary w-100 me-2" onclick="loadAdminData()">Filter</button>
-                <button class="btn btn-success w-100" onclick="window.print()">Print Laporan</button>
-            </div>
-        </div>
-
-        <table class="table table-bordered table-striped align-middle">
-            <thead class="table-dark">
-                <tr>
-                    <th>Tanggal</th>
-                    <th>Nama</th>
-                    <th>Perusahaan</th>
-                    <th>Jabatan</th>
-                    <th>Foto Sim</th>
-                    <th>Tiket</th>
-                    <th>Skor</th>
-                    <th>Status</th>
-                    <th class="no-print">Aksi</th>
-                </tr>
-            </thead>
-            <tbody id="result-table-body">
-                </tbody>
-        </table>
-    </div>
+    <div id="printArea"></div>
 </div>
 
-<div class="modal fade" id="ticketModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title">Tiket Berhasil Dibuat</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body text-center">
-                <p>Berikan kode ini kepada peserta:</p>
-                <h1 class="display-4 fw-bold text-primary" id="modal-ticket-code">...</h1>
-                <p class="mb-0" id="modal-user-name"></p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
-            </div>
-        </div>
-    </div>
-</div>
-    
-<!-- Sidebar Toggle Script - Load FIRST before anything else -->
 <script>
-    console.log('Toggle script loaded');
-    
-    // Sidebar toggle functionality - Direct function
-    function toggleSidebar() {
-        console.log('toggleSidebar called!');
-        const sidebar = document.getElementById('sidebar');
-        if (sidebar) {
-            sidebar.classList.toggle('active');
-            console.log('Sidebar toggled! Active:', sidebar.classList.contains('active'));
-            console.log('Sidebar classes:', sidebar.className);
-            console.log('Sidebar left position:', window.getComputedStyle(sidebar).left);
-        } else {
-            console.error('Sidebar not found!');
+
+const SUPABASE_URL = 'https://voqvauapafsdcmuswsnq.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvcXZhdWFwYWZzZGNtdXN3c25xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNDMxNTYsImV4cCI6MjA4MTcxOTE1Nn0.IJG7ofqfc4Qy44KlbTDGzo4OoQwO0xTXUwKPt04kRnI';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+function showHome() {
+    var homePage = document.getElementById('homePage');
+    var formPage = document.getElementById('formPage');
+    homePage.classList.remove('hidden');
+    formPage.classList.add('hidden');
+    loadData();
+}
+
+function showForm() {
+    var homePage = document.getElementById('homePage');
+    var formPage = document.getElementById('formPage');
+    homePage.classList.add('hidden');
+    formPage.classList.remove('hidden');
+
+    var now = new Date();
+    document.getElementById('inDate').value = now.toISOString().split('T')[0];
+    document.getElementById('inTime').value = now.toTimeString().slice(0, 5);
+    document.getElementById('staffList').innerHTML = '';
+}
+
+function hideSelect() {
+    document.getElementById('staffSelect').style.display = 'none';
+}
+
+function addStaffRow() {
+    var staffList = document.getElementById('staffList');
+    var select = document.createElement('select');
+    select.className = 'form-select mb-2 staff-select';
+    select.required = true;
+    select.innerHTML = `
+        <option value="">-- Pilih Petugas --</option>
+        <option value="Yeffi Suwono Putra">Yeffi S.Putra</option>
+        <option value="Muhammad Abduh">Muhammad Abduh</option>
+        <option value="Rangga Swardani Abadi">Rangga SWA</option>
+        <option value="Herdin Jonathan Sibarani">Herdin Jo</option>
+        <option value="Febri Antoni">Febri Antoni</option>
+        <option value="Febriko Dwi Fatmi">Febriko DF</option>
+        <option value="Andi Duriamin Siregar">Andi DS</option>  
+    `;
+    staffList.appendChild(select);
+}
+
+function addPhotoRow() {
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.className = 'form-control mb-2 photo-input';
+    input.accept = 'image/*';
+    input.onchange = function() { handleFile(this); };
+    document.getElementById('photoList').appendChild(input);
+}
+
+function handleFile(input) {
+    if (input.files && input.files[0]) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var img = document.createElement('img');
+            img.src = e.target.result;
+            img.className = 'img-preview';
+            document.getElementById('previewBox').appendChild(img);
+            input.dataset.blob = e.target.result;
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+function handleSubmit(e) {
+    e.preventDefault();
+    var btn = document.getElementById('btnSubmit');
+    btn.disabled = true;
+    btn.innerText = "Menyimpan...";
+
+    var petugasArray = [];
+    var staffSelects = document.querySelectorAll('#staffList .staff-select');
+    for (var i = 0; i < staffSelects.length; i++) {
+        if (staffSelects[i].value.trim() !== '') {
+            petugasArray.push(staffSelects[i].value.trim());
         }
     }
+
+    var photoInputs = document.querySelectorAll('.photo-input');
+    var fotoArray = [];
+    for (var j = 0; j < photoInputs.length; j++) {
+        if (photoInputs[j].dataset.blob) {
+            fotoArray.push(photoInputs[j].dataset.blob);
+        }
+    }
+
+    var payload = {
+        tanggal: document.getElementById('inDate').value,
+        waktu: document.getElementById('inTime').value,
+        area: document.getElementById('logArea').value,
+        petugas: petugasArray,
+        keterangan: document.getElementById('inDesc').value,
+        foto: fotoArray
+    };
+
+    if (supabaseClient) {
+        supabaseClient.from('logbook_daily').insert([payload]).then(function(response) {
+            if (response.error) {
+                alert("Error: " + response.error.message);
+            } else {
+                alert("Data Berhasil Disimpan!");
+                document.getElementById('logForm').reset();
+                document.getElementById('staffList').innerHTML = '';
+                document.getElementById('previewBox').innerHTML = '';
+                showHome();
+            }
+            btn.disabled = false;
+            btn.innerText = "Simpan Data";
+        });
+    } else {
+        alert("Supabase not initialized");
+        btn.disabled = false;
+        btn.innerText = "Simpan Data";
+    }
+    return false;
+}
+
+function loadData() {
+    var tbody = document.getElementById('logTableBody');
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center">Memuat data...</td></tr>';
+
+    if (!supabaseClient) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-warning">Supabase not initialized</td></tr>';
+        return;
+    }
+
+    supabaseClient.from('logbook_daily').select('*').order('tanggal', { ascending: false }).then(function(response) {
+        if (response.error) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error memuat data</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = '';
+        var data = response.data;
+        for (var i = 0; i < data.length; i++) {
+            var log = data[i];
+            var row = document.createElement('tr');
+            
+            var petugasBadges = '';
+            for (var j = 0; j < log.petugas.length; j++) {
+                petugasBadges += '<span class="badge bg-light text-dark border">' + log.petugas[j] + '</span> ';
+            }
+            
+            var fotoImages = '';
+            for (var k = 0; k < log.foto.length; k++) {
+                fotoImages += '<img src="' + log.foto[k] + '" class="img-preview">';
+            }
+            
+            row.innerHTML = '<td class="ps-3"><strong>' + log.tanggal + '</strong><br><small>' + log.waktu + ' | ' + log.area + '</small></td>' +
+                '<td>' + petugasBadges + '</td>' +
+                '<td><small>' + log.keterangan + '</small></td>' +
+                '<td>' + fotoImages + '</td>' +
+                '<td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="deleteData(' + log.id + ')"><i class="bi bi-trash"></i></button></td>';
+            tbody.appendChild(row);
+        }
+    });
+}
+
+function deleteData(id) {
+    if (confirm("Hapus logbook ini?")) {
+        supabaseClient.from('logbook_daily').delete().eq('id', id).then(function(response) {
+            if (response.error) {
+                alert("Error: " + response.error.message);
+            } else {
+                loadData();
+            }
+        });
+    }
+}
+
+function fetchForPrint() {
+    var from = document.getElementById('filterFrom').value;
+    var to = document.getElementById('filterTo').value;
+    if(!from || !to) {
+        alert("Pilih rentang tanggal!");
+        return;
+    }
+
+    supabaseClient.from('logbook_daily').select('*').gte('tanggal', from).lte('tanggal', to).order('tanggal', { ascending: true }).then(function(response) {
+        if(response.error) {
+            alert("Error: " + response.error.message);
+            return;
+        }
+        
+        if(response.data.length === 0) {
+            alert("Data tidak ditemukan.");
+            return;
+        }
+
+        var rows = '';
+        for (var i = 0; i < response.data.length; i++) {
+            var l = response.data[i];
+            var fotoHtml = '';
+            for (var j = 0; j < l.foto.length; j++) {
+                fotoHtml += '<img src="' + l.foto[j] + '" width="60">';
+            }
+            rows += '<tr><td>' + (i+1) + '</td><td>' + l.tanggal + ' ' + l.waktu + '</td><td>' + l.area + '</td><td>' + l.petugas.join(', ') + '</td><td>' + l.keterangan + '</td><td>' + fotoHtml + '</td></tr>';
+        }
+
+        document.getElementById('printArea').innerHTML = '<div style="text-align:center"><h3>REKAPITULASI DAILY LOGBOOK</h3><p>Periode: ' + from + ' s/d ' + to + '</p></div><table border="1" style="width:100%; border-collapse: collapse; font-size: 12px"><thead><tr bgcolor="#eee"><th>No</th><th>Waktu</th><th>Area</th><th>Petugas</th><th>Keterangan</th><th>Foto</th></tr></thead><tbody>' + rows + '</tbody></table>';
+        setTimeout(() => window.print(), 100);
+    });
+}
+
+
+// Wait for Supabase to load
+setTimeout(function() {
+    showHome();
+}, 500);
+
+// Fungsi untuk set active menu
+function setActiveMenu(element) {
+    // Remove active class from all menu items
+    document.querySelectorAll('#sidebar ul li a').forEach(link => {
+        link.classList.remove('active');
+    });
+    // Add active class to clicked item
+    element.classList.add('active');
+}
+
+// Toggle sidebar
+document.addEventListener('DOMContentLoaded', function() {
+    showHome();
     
-    console.log('toggleSidebar function defined');
+    // Sidebar toggle functionality
+    const sidebarCollapse = document.getElementById('sidebarCollapse');
+    const sidebar = document.getElementById('sidebar');
+    
+    if (sidebarCollapse) {
+        sidebarCollapse.addEventListener('click', function() {
+            sidebar.classList.toggle('active');
+        });
+    }
+});
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="assets/logic.js"></script>
-
-<script>
-    console.log('Main script starting');
-    
-    const SUPABASE_URL = 'https://voqvauapafsdcmuswsnq.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvcXZhdWFwYWZzZGNtdXN3c25xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNDMxNTYsImV4cCI6MjA4MTcxOTE1Nn0.IJG7ofqfc4Qy44KlbTDGzo4OoQwO0xTXUwKPt04kRnI';
-    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    
-    // Backup: Also set up event listener
-    function setupSidebarToggle() {
-        const sidebarCollapse = document.getElementById('sidebarCollapse');
-        const sidebar = document.getElementById('sidebar');
-
-        if (sidebarCollapse && sidebar) {
-            sidebarCollapse.addEventListener('click', function(e) {
-                e.preventDefault();
-                toggleSidebar();
-            });
-            console.log('Sidebar toggle event listener attached');
-        } else {
-            console.error('Sidebar elements not found:', { sidebarCollapse, sidebar });
-        }
-    }
-
-    // Auto load data admin setiap 2 detik untuk cek request baru
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('Admin page DOMContentLoaded');
-        
-        // Setup sidebar toggle FIRST
-        setupSidebarToggle();
-        
-        // Then load admin data with error handling
-        try {
-            loadAdminData();
-            setInterval(loadAdminData, 3000); // Polling data
-        } catch (error) {
-            console.error('Error loading admin data:', error);
-        }
-    });
-
-    // --- CEK SESI (PROTEKSI HALAMAN) ---
-    async function checkAuth() {
-        const { data: { session } } = await supabaseClient.auth.getSession();
-        if (!session) {
-            // Jika tidak ada user login, tendang ke login page
-            window.location.href = 'index.html';
-        } else {
-            // Tampilkan email user
-            document.getElementById('userEmail').innerText = session.user.email;
-        }
-    }
-    checkAuth();
-    
-    // Dummy function for showHome if not defined elsewhere
-    function showHome() {
-        console.log('showHome called');
-    }
-
-    // Fungsi untuk set active menu
-    function setActiveMenu(element) {
-        // Remove active class from all menu items
-        document.querySelectorAll('#sidebar ul li a').forEach(link => {
-            link.classList.remove('active');
-        });
-        // Add active class to clicked item
-        element.classList.add('active');
-    }
-</script>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -354,7 +354,49 @@ async function resetSystem() {
 }
 
 // ==========================================
-// 6. AUTO RUN (INIT)
+// 6. FUNGSI LOGOUT (CENTRALIZED)
+// ==========================================
+
+/**
+ * Fungsi logout yang terpusat untuk semua halaman
+ * Membersihkan session storage dan melakukan sign out dari Supabase
+ */
+async function logout() {
+    // Konfirmasi sebelum logout
+    const confirmLogout = confirm('Apakah Anda yakin ingin keluar dari sistem?');
+    
+    if (!confirmLogout) {
+        return; // User membatalkan logout
+    }
+
+    try {
+        // Bersihkan session storage (untuk data exam)
+        sessionStorage.clear();
+        
+        // Sign out dari Supabase
+        // Cek apakah ada supabaseClient global atau gunakan _sb
+        const client = typeof supabaseClient !== 'undefined' ? supabaseClient : _sb;
+        
+        const { error } = await client.auth.signOut();
+        
+        if (error) {
+            throw error;
+        }
+        
+        // Redirect ke halaman login
+        window.location.href = 'index.html';
+        
+    } catch (error) {
+        console.error('Logout error:', error);
+        alert('Gagal logout: ' + error.message + '\n\nAnda akan tetap diarahkan ke halaman login.');
+        
+        // Tetap redirect meskipun ada error
+        window.location.href = 'index.html';
+    }
+}
+
+// ==========================================
+// 7. AUTO RUN (INIT)
 // ==========================================
 document.addEventListener('DOMContentLoaded', () => {
     // Cek kita ada di halaman mana

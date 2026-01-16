@@ -373,14 +373,29 @@ async function logout() {
         // Bersihkan session storage (untuk data exam)
         sessionStorage.clear();
         
+        // Bersihkan local storage juga (jika ada)
+        localStorage.clear();
+        
         // Sign out dari Supabase
-        // Cek apakah ada supabaseClient global atau gunakan _sb
-        const client = typeof supabaseClient !== 'undefined' ? supabaseClient : _sb;
+        // Cek berbagai kemungkinan nama client yang digunakan
+        let client = null;
         
-        const { error } = await client.auth.signOut();
+        if (typeof supabaseClient !== 'undefined') {
+            client = supabaseClient;
+        } else if (typeof _sb !== 'undefined') {
+            client = _sb;
+        } else if (typeof window.supabase !== 'undefined') {
+            // Fallback: buat client baru jika belum ada
+            client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        }
         
-        if (error) {
-            throw error;
+        if (client) {
+            const { error } = await client.auth.signOut();
+            
+            if (error) {
+                console.warn('Logout warning:', error);
+                // Tidak throw error, tetap lanjut redirect
+            }
         }
         
         // Redirect ke halaman login
@@ -388,12 +403,22 @@ async function logout() {
         
     } catch (error) {
         console.error('Logout error:', error);
-        alert('Gagal logout: ' + error.message + '\n\nAnda akan tetap diarahkan ke halaman login.');
         
         // Tetap redirect meskipun ada error
+        // Bersihkan semua storage
+        try {
+            sessionStorage.clear();
+            localStorage.clear();
+        } catch (e) {
+            console.error('Error clearing storage:', e);
+        }
+        
         window.location.href = 'index.html';
     }
 }
+
+// Expose logout function to global scope
+window.logout = logout;
 
 // ==========================================
 // 7. AUTO RUN (INIT)

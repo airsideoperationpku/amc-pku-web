@@ -7,6 +7,7 @@
     <title>CHECKLIST FASILITAS DAN KONDISI APRON</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <script src="assets/logic.js"></script>
     <style>
         .hidden { display: none; }
         .form-check-input { cursor: pointer; border: 1px solid #0d6efd; }
@@ -282,10 +283,19 @@
         "Kerapihan (Peralatan GSE ditempatkan dengan baik)", "Pengawasan (Adanya alat pemadam kebakaran dan personil terlatih)"
     ];
 
-    // Konfigurasi Supabase
+// Konfigurasi Supabase
 const SUPABASE_URL = 'https://voqvauapafsdcmuswsnq.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvcXZhdWFwYWZzZGNtdXN3c25xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNDMxNTYsImV4cCI6MjA4MTcxOTE1Nn0.IJG7ofqfc4Qy44KlbTDGzo4OoQwO0xTXUwKPt04kRnI';
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Create and expose supabaseClient to window scope IMMEDIATELY
+// This ensures logout function can access it
+if (typeof window.supabase !== 'undefined') {
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    window.supabaseClient = supabaseClient;
+    console.log('Supabase client initialized and exposed to window');
+} else {
+    console.error('Supabase library not loaded!');
+}
 
 // Fungsi Navigasi
 function showHome() {
@@ -635,6 +645,5 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="assets/logic.js"></script>
 </body>
 </html>

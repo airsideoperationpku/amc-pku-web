@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CHECKLIST FASILITAS DAN KONDISI APRON</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
+    <!-- Load Supabase library FIRST -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Initialize Supabase client immediately and expose to window -->
+    <script>
+        // Konfigurasi Supabase
+        const SUPABASE_URL = 'https://voqvauapafsdcmuswsnq.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ' +
+            'SIsInJlZiI6InZvcXZhdWFwYWZzZGNtdXN3c25xIiwicm9sZSI6ImFub24iLCJpYXQiOjE' +
+            '3NjYxNDMxNTYsImV4cCI6MjA4MTcxOTE1Nn0.IJG7ofqfc4Qy44KlbTDGzo4OoQwO0xTXU' +
+            'wKPt04kRnI';
+
+        // Create and expose supabaseClient to window scope IMMEDIATELY
+        // This ensures logic.js logout function can access it
+        if (typeof window.supabase !== 'undefined') {
+            const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            window.supabaseClient = supabaseClient;
+            console.log('Supabase client initialized and exposed to window');
+        } else {
+            console.error('Supabase library not loaded!');
+        }
+    </script>
+    
+    <!-- Load logic.js AFTER Supabase client is initialized -->
+    <script src="assets/logic.js"></script>
+    <style>
+        .hidden { display: none; }
+        .form-check-input { cursor: pointer; border: 1px solid #0d6efd; }
+        
+        /* Sidebar Styles */
+        #sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            min-width: 250px;
+            max-width: 250px;
+            background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            transition: left 0.3s ease, transform 0.3s ease;
+            min-height: 100vh;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            z-index: 1000;
+            transform: translateX(0);
+        }
+
+        #sidebar.active {
+            left: -250px !important;
+            transform: translateX(-250px) !important;
+        }
+
+        #sidebar .sidebar-header {
+            padding: 20px;
+            background: rgba(0,0,0,0.2);
+        }
+
+        #sidebar ul.components {
+            padding: 20px 0;
+        }
+
+        #sidebar ul li {
+            padding: 10px;
+            font-size: 1.1em;
+            display: block;
+        }
+
+        #sidebar ul li a {
+            padding: 10px 15px;
+            font-size: 1em;
+            display: block;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.3s;
+            border-radius: 5px;
+        }
+
+        #sidebar ul li a:hover,
+        #sidebar ul li a.active {
+            color: #fff;
+            background: rgba(255,255,255,0.1);
+        }
+
+        #sidebar ul li a i {
+            margin-right: 10px;
+        }
+
+        #content {
+            margin-left: 250px;
+            width: calc(100% - 250px);
+            padding: 20px;
+            min-height: 100vh;
+            transition: margin-left 0.3s ease, width 0.3s ease;
+        }
+
+        #sidebar.active ~ #content {
+            margin-left: 0 !important;
+            width: 100% !important;
+        }
+
+        .wrapper {
+            width: 100%;
+            position: relative;
+        }
+        
+        #sidebarCollapse {
+            background: #1e3c72;
+            color: #fff;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        #sidebarCollapse:hover {
+            background: #2a5298;
+        }
+        
+        /* CSS KHUSUS CETAK */
+        @media print {
+            body * { visibility: hidden; }
+            #printArea, #printArea * { visibility: visible; }
+            #printArea { 
+                position: absolute; 
+                left: 0; 
+                top: 0; 
+                width: 100%; 
+                background: white;
+            }
+            .page-break { page-break-after: always; }
+            .no-print { display: none !important; }
+            #sidebar { display: none !important; }
+            #sidebarCollapse { display: none !important; }
+        }
+
+        .card-header { font-weight: bold; background-color: #f8f9fa; }
+        .table-striped > tbody > tr:nth-of-type(odd) { --bs-table-accent-bg: rgba(0, 0, 0, 0.02); }
+    </style>
+</head>
+<body class="bg-light">
+
+<div class="wrapper">
+    <!-- Sidebar -->
+    <nav id="sidebar">
+        <div class="sidebar-header">
+            <h3><i class="bi bi-building-gear"></i> AMC</h3>
+            <p class="mb-0">Sultan Syarif Kasim II</p>
+        </div>
+
+        <ul class="list-unstyled components">
+            <li>
+                <a href="dashboard.html">
+                    <i class="bi bi-house"></i> Dashboard
+                </a>
+            </li>
+            <li>
+                <a href="#" onclick="showHome(); setActiveMenu(this); return false;" class="active">
+                    <i class="bi bi-card-checklist"></i> Checklist
+                </a>
+            </li>
+            <li>
+                <a href="logbook.html">
+                    <i class="bi bi-journal-check"></i> Logbook
+                </a>
+            </li>
+            <li>
+                <a href="admintim.html">
+                    <i class="bi bi-display"></i> Admin TIM
+                </a>
+            </li>
+             <li>
+                <a href="#" onclick="logout(); return false;">
+                    <i class="bi bi-box-arrow-right"></i> Logout
+                </a>
+            </li>
+        </ul>
+
+        <div class="px-3 mt-auto pb-3">
+            <small class="text-white-50">Apron Movement Control PKU</small>
+        </div>
+    </nav>
+
+    <!-- Page Content -->
+    <div id="content">
+        <button type="button" id="sidebarCollapse" class="btn mb-3" onclick="toggleSidebar()">
+            <i class="bi bi-list"></i> Toggle Menu
+        </button>
+
+        <div id="homePage">
+
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <h3 class="mb-0 text-primary"><i class="bi bi-building-gear"></i> Checklist AMC PKU</h3>
+                <button class="btn btn-primary shadow-sm" onclick="showForm()">
+                    <i class="bi bi-plus-circle me-1"></i> Tambah Checklist
+                </button>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header border-0 bg-white pt-3">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-3">
+                        <label class="small fw-bold">Dari Tanggal:</label>
+                        <input type="date" id="filterStartDate" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="small fw-bold">Sampai Tanggal:</label>
+                        <input type="date" id="filterEndDate" class="form-control form-control-sm">
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="printChecklistRange()">
+                            <i class="bi bi-printer me-1"></i> Cetak Laporan
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Tanggal</th>
+                                <th>Waktu</th>
+                                <th>Petugas</th>
+                                <th class="text-center">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="checklistTableBody">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <div id="formPage" class="hidden">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4><i class="bi bi-pencil-square"></i> Input Pengecekan</h4>
+                <button class="btn btn-sm btn-secondary" onclick="showHome()">Kembali</button>
+            </div>
+
+            <form id="checklistForm">
+                <div class="card shadow-sm mb-3">
+                    <div class="card-body row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Tanggal</label>
+                            <input type="date" id="inputDate" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Waktu</label>
+                            <input type="time" id="inputTime" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Daftar Petugas</label>
+                            <div id="inspectorWrapper"></div>
+                            <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="addStaffRow()">+ Tambah Petugas</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0">
+                    <div class="table-responsive">
+                        <table class="table table-bordered align-middle mb-0">
+                            <thead class="table-dark text-center">
+                                <tr>
+                                    <th width="5%">No</th>
+                                    <th width="35%">Item Pemeriksaan</th>
+                                    <th width="25%">Kondisi</th>
+                                    <th width="35%">Keterangan</th>
+                                </tr>
+                            </thead>
+                            <tbody id="formItemsBody">
+                                </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="text-end mt-4 mb-5">
+                    <button type="submit" class="btn btn-success btn-lg px-5">SIMPAN DATA</button>
+                </div>
+            </form>
+        </div>
+
+        <div id="printArea" class="p-4">
+        </div>
+    </div>
+</div>
+
+<script>
+    // 23 Item Pemeriksaan
+    const facilityItems = [
+        "Apron D01-D06", "Apron D07-D12", "North Apron", "South Apron", "Taxiway Apron",
+        "Taxi A dan B Sign", "Flood Light", "Marka Apron", "Apron Light", "Parking Stand Indikator Box",
+        "Equipment Parking Area", "Equipment Storage Area", "Baggage Break down Area", "Baggage Make up Area", "Service Road Apron",
+        "Control Desk Apron Flood Light", "Garbarata D05", "Garbarata D06", "Garbarata D07",
+        "Garbarata D08", "Kebersihan (Apron bersih dari  FOD, Bekas oli, dll)", "Kenyamanan (Nyaman bersih tidak ada sampah berserakan)", 
+        "Kerapihan (Peralatan GSE ditempatkan dengan baik)", "Pengawasan (Adanya alat pemadam kebakaran dan personil terlatih)"
+    ];
+
+// Use the globally initialized supabaseClient from window scope
+const supabaseClient = window.supabaseClient;
+
+// Fungsi Navigasi
+function showHome() {
+    document.getElementById('homePage').classList.remove('hidden');
+    document.getElementById('formPage').classList.add('hidden');
+    renderMainTable();
+}
+
+function showForm() {
+    document.getElementById('homePage').classList.add('hidden');
+    document.getElementById('formPage').classList.remove('hidden');
+    populateFormItems();
+    
+    // Set default date and time
+    const now = new Date();
+    document.getElementById('inputDate').value = now.toISOString().split('T')[0];
+    document.getElementById('inputTime').value = now.toTimeString().slice(0, 5);
+}
+
+// Fungsi untuk menambah petugas baru
+function addStaffRow() {
+    const wrapper = document.getElementById('inspectorWrapper');
+    const newInput = document.createElement('div');
+    newInput.className = 'input-group mb-2';
+    newInput.innerHTML = `
+        <select class="form-select inspector-name" required>
+            <option value="">-- Pilih Petugas --</option>
+            <option value="Yeffi Suwono Putra">Yeffi S.Putra</option>
+            <option value="Muhammad Abduh">Muhammad Abduh</option>
+            <option value="Rangga Swardani Abadi">Rangga SWA</option>
+            <option value="Herdin Jonathan Sibarani">Herdin Jo</option>
+            <option value="Febri Antoni">Febri Antoni</option>
+            <option value="Febriko Dwi Fatmi">Febriko DF</option>
+            <option value="Andi Duriamin Siregar">Andi DS</option>
+        </select>
+        <button type="button" class="btn btn-outline-danger" onclick="this.parentElement.remove()">
+            <i class="bi bi-trash"></i>
+        </button>
+    `;
+    wrapper.appendChild(newInput);
+}
+
+// Fungsi untuk populate form items
+function populateFormItems() {
+    const tbody = document.getElementById('formItemsBody');
+    tbody.innerHTML = '';
+    
+    facilityItems.forEach((item, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="text-center">${index + 1}</td>
+            <td>${item}</td>
+            <td class="text-center">
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="radio_${index}" id="a_${index}" value="A" onchange="handleRadioChange(${index})" required>
+                    <label class="form-check-label" for="a_${index}">A</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="radio_${index}" id="b_${index}" value="B" onchange="handleRadioChange(${index})">
+                    <label class="form-check-label" for="b_${index}">B</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="radio_${index}" id="c_${index}" value="C" onchange="handleRadioChange(${index})">
+                    <label class="form-check-label" for="c_${index}">C</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="radio_${index}" id="d_${index}" value="D" onchange="handleRadioChange(${index})">
+                    <label class="form-check-label" for="d_${index}">D</label>
+                </div>
+            </td>
+            <td>
+                <div id="noteBox_${index}" class="hidden">
+                    <textarea class="form-control form-control-sm note-text" rows="2" placeholder="Jelaskan keterangan..."></textarea>
+                </div>
+                <small class="text-muted" id="noteLabel_${index}">Pilih kondisi terlebih dahulu</small>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+// Fungsi untuk handle perubahan radio button
+function handleRadioChange(index) {
+    const noteBox = document.getElementById(`noteBox_${index}`);
+    const noteLabel = document.getElementById(`noteLabel_${index}`);
+    const cRadio = document.getElementById(`c_${index}`);
+    const dRadio = document.getElementById(`d_${index}`);
+    
+    if (cRadio.checked || dRadio.checked) {
+        noteBox.classList.remove('hidden');
+        noteLabel.classList.add('hidden');
+    } else {
+        noteBox.classList.add('hidden');
+        noteLabel.classList.remove('hidden');
+    }
+}
+
+// Fungsi untuk mengambil data dari Supabase (Menampilkan di Tabel Utama)
+async function renderMainTable() {
+    const tbody = document.getElementById('checklistTableBody');
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center">Memuat data...</td></tr>';
+
+    const { data, error } = await supabaseClient
+        .from('checklist_fasilitas')
+        .select('*')
+        .order('tanggal', { ascending: false });
+
+    if (error) {
+        console.error(error);
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-danger">Gagal memuat data</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = '';
+    if (data.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Belum ada data</td></tr>';
+        return;
+    }
+    
+    data.forEach((item) => {
+        tbody.innerHTML += `
+            <tr>
+                <td class="ps-3 fw-bold">${item.tanggal}</td>
+                <td>${item.waktu}</td>
+                <td>${item.petugas.join(', ')}</td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-info text-white me-1" onclick="viewSingleDetail(${item.id})" title="Lihat Detail">
+                        <i class="bi bi-search"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger text-white" onclick="deleteChecklist(${item.id})" title="Hapus Data">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+// Fungsi untuk menghapus data checklist
+async function deleteChecklist(id) {
+    if (!confirm('Apakah Anda yakin ingin menghapus data ini?')) {
+        return;
+    }
+
+    const { error } = await supabaseClient
+        .from('checklist_fasilitas')
+        .delete()
+        .eq('id', id);
+
+    if (error) {
+        alert('Gagal menghapus data: ' + error.message);
+    } else {
+        alert('Data berhasil dihapus!');
+        renderMainTable();
+    }
+}
+
+// Fungsi untuk melihat detail checklist
+async function viewSingleDetail(id) {
+    const { data, error } = await supabaseClient
+        .from('checklist_fasilitas')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    if (error) {
+        alert('Gagal memuat detail: ' + error.message);
+        return;
+    }
+
+    const printArea = document.getElementById('printArea');
+    let tableRows = data.data_pemeriksaan.map((row, i) => `
+        <tr>
+            <td align="center">${i+1}</td>
+            <td>${row.itemName}</td>
+            <td align="center"><b>${row.status}</b></td>
+            <td>${row.note}</td>
+        </tr>
+    `).join('');
+
+    let tableRowsStyled = data.data_pemeriksaan.map((row, i) => `
+        <tr style="background-color: ${i % 2 === 0 ? '#ffffff' : '#f8f9fa'};">
+            <td align="center">${i+1}</td>
+            <td>${row.itemName}</td>
+            <td align="center"><b>${row.status}</b></td>
+            <td>${row.note}</td>
+        </tr>
+    `).join('');
+
+    printArea.innerHTML = `
+        <div>
+            <h2 align="center">LAPORAN PENGECEKAN FASILITAS</h2>
+            <p align="center">Tanggal: ${data.tanggal} | Waktu: ${data.waktu}<br>Petugas: ${data.petugas.join(', ')}</p>
+            <table border="1" width="100%" style="border-collapse: collapse;">
+                <thead><tr bgcolor="#eee"><th>No</th><th>Item</th><th>Kondisi</th><th>Keterangan</th></tr></thead>
+                <tbody>${tableRowsStyled}</tbody>
+            </table>
+        </div>
+    `;
+
+    setTimeout(() => window.print(), 500);
+}
+
+// Fungsi untuk menyimpan data ke Supabase
+document.getElementById('checklistForm').onsubmit = async function(e) {
+    e.preventDefault();
+    
+    // Validasi semua item sudah dipilih
+    let allChecked = true;
+    for (let i = 0; i < facilityItems.length; i++) {
+        if (!document.querySelector(`input[name="radio_${i}"]:checked`)) {
+            allChecked = false;
+            break;
+        }
+    }
+    
+    if (!allChecked) {
+        alert('Harap lengkapi semua item pemeriksaan!');
+        return;
+    }
+    
+    const checklistData = facilityItems.map((name, i) => {
+        const status = document.querySelector(`input[name="radio_${i}"]:checked`).value;
+        const noteText = document.querySelector(`#noteBox_${i} .note-text`)?.value || '';
+        return {
+            itemName: name,
+            status: status,
+            note: (status === 'C' || status === 'D') && noteText ? noteText : '-'
+        };
+    });
+
+    const payload = {
+        tanggal: document.getElementById('inputDate').value,
+        waktu: document.getElementById('inputTime').value,
+        petugas: Array.from(document.querySelectorAll('.inspector-name')).map(el => el.value).filter(v => v.trim()),
+        data_pemeriksaan: checklistData
+    };
+
+    const { error } = await supabaseClient
+        .from('checklist_fasilitas')
+        .insert([payload]);
+
+    if (error) {
+        alert('Gagal menyimpan: ' + error.message);
+    } else {
+        alert('Data Berhasil Disimpan ke Supabase!');
+        this.reset();
+        showHome();
+    }
+};
+
+// Fungsi Cetak Berdasarkan Rentang Tanggal dari Supabase
+async function printChecklistRange() {
+    const start = document.getElementById('filterStartDate').value;
+    const end = document.getElementById('filterEndDate').value;
+
+    if (!start || !end) return alert('Pilih rentang tanggal!');
+
+    const { data: filtered, error } = await supabaseClient
+        .from('checklist_fasilitas')
+        .select('*')
+        .gte('tanggal', start)
+        .lte('tanggal', end)
+        .order('tanggal', { ascending: true });
+
+    if (error) {
+        alert('Gagal memuat data: ' + error.message);
+        return;
+    }
+    
+    if (filtered.length === 0) {
+        alert('Data tidak ditemukan pada rentang tanggal tersebut.');
+        return;
+    }
+
+    const printArea = document.getElementById('printArea');
+    printArea.innerHTML = ''; 
+
+    filtered.forEach((data, index) => {
+        let tableRows = data.data_pemeriksaan.map((row, i) => `
+            <tr style="background-color: ${i % 2 === 0 ? '#ffffff' : '#f8f9fa'};">
+                <td align="center">${i+1}</td>
+                <td>${row.itemName}</td>
+                <td align="center"><b>${row.status}</b></td>
+                <td>${row.note}</td>
+            </tr>
+        `).join('');
+
+        printArea.innerHTML += `
+            <div class="${index < filtered.length - 1 ? 'page-break' : ''}">
+                    <div style="text-align:center; border-bottom: 2px solid #000; margin-bottom: 10px; padding-bottom: 1px;">
+                        <h2 style="margin:0">LAPORAN DAILY CHECKLIST</h2>
+                        <p style="margin:2px 0">Tanggal: ${data.tanggal} | Waktu: ${data.waktu}</p>
+                        <p style="margin:0">Petugas: ${data.petugas.join(', ')}</p>
+                    </div>
+                    <table border="1" style="width:100%; border-collapse: collapse; margin-bottom: 10px;">
+                        <thead>
+                            <tr style="background-color: #eee;">
+                                <th width="4%">No</th>
+                                <th width="40%">Fasilitas / Kondisi</th>
+                                <th width="15%">Kondisi</th>
+                                <th width="40%">Keterangan</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                        </tbody>
+                    </table>
+                    <div style="display: flex; justify-content: space-between; margin-top: 5px; text-align: center;">
+                        <div style="width: 250px;">Dibuat Oleh,<br><br><br>( ${data.petugas[0]} )</div>
+                        <div style="width: 250px;">Airport Operation Dept.Head,<br><br><br>( As Syauwaluddin Fikri )</div>
+                    </div>
+                </div>
+        `;
+    });
+
+    setTimeout(() => window.print(), 500);
+}
+    // --- CEK SESI (PROTEKSI HALAMAN) ---
+    async function checkAuth() {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (!session) {
+            // Jika tidak ada user login, tendang ke login page
+            window.location.href = 'index.html';
+        } else {
+            // Tampilkan email user
+            document.getElementById('userEmail').innerText = session.user.email;
+        }
+    }
+    checkAuth();
+
+    // Fungsi untuk set active menu
+    function setActiveMenu(element) {
+        // Remove active class from all menu items
+        document.querySelectorAll('#sidebar ul li a').forEach(link => {
+            link.classList.remove('active');
+        });
+        // Add active class to clicked item
+        element.classList.add('active');
+    }
+
+// ==========================================
+// SIDEBAR TOGGLE FUNCTION
+// ==========================================
+function toggleSidebar() {
+    console.log('toggleSidebar called');
+    const sidebar = document.getElementById('sidebar');
+    const content = document.getElementById('content');
+    
+    if (sidebar && content) {
+        const isActive = sidebar.classList.contains('active');
+        
+        if (isActive) {
+            // Show sidebar
+            sidebar.classList.remove('active');
+            console.log('Sidebar shown');
+        } else {
+            // Hide sidebar
+            sidebar.classList.add('active');
+            console.log('Sidebar hidden');
+        }
+    } else {
+        console.error('Sidebar or content element not found!');
+        console.log('Sidebar:', sidebar);
+        console.log('Content:', content);
+    }
+}
+
+// Expose to window immediately
+window.toggleSidebar = toggleSidebar;
+
+// Expose logout function locally if not already available from logic.js
+if (typeof window.logout === 'undefined') {
+    window.logout = async function() {
+        const confirmLogout = confirm('Apakah Anda yakin ingin keluar dari sistem?');
+        if (!confirmLogout) return false;
+        
+        try {
+            sessionStorage.clear();
+            localStorage.clear();
+            
+            if (window.supabaseClient && window.supabaseClient.auth) {
+                await window.supabaseClient.auth.signOut();
+            }
+            
+            window.location.href = 'index.html';
+            return true;
+        } catch (error) {
+            console.error('Logout error:', error);
+            sessionStorage.clear();
+            localStorage.clear();
+            window.location.href = 'index.html';
+            return true;
+        }
+    };
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Ensure logout function is available
+    if (typeof window.logout === 'undefined' && typeof logout !== 'undefined') {
+        window.logout = logout;
+    }
+    
+    showHome();
+});
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

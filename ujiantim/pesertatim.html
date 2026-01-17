@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ujian TIM Sisi Udara - Peserta</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .step-section { display: none; }
+        .active-section { display: block; }
+        .card { box-shadow: 0 4px 8px rgba(0,0,0,0.1); border: none; }
+    </style>
+</head>
+<body class="bg-light">
+
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <h3 class="text-center mb-4 text-primary">Ujian TIM SSKII PKU</h3>
+
+            <div id="step-register" class="step-section active-section">
+                <div class="card p-4">
+                    <h5 class="card-title mb-3">Registrasi</h5>
+                    <form id="form-register">
+                        <div class="mb-3">
+                            <label class="form-label">Nama Lengkap</label>
+                            <input type="text" class="form-control" id="nama" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Alamat</label>
+                            <input type="text" class="form-control" id="alamat" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Nama Perusahaan</label>
+                                <select id="perusahaan" class="form-select" required>
+                                    <option value="">--Pilih Perusahaan --</option>
+                                    <option value="gapura">PT.Gapura Angkasa</option>
+                                    <option value="Morasanel">PT.Mora Sanel Lestari</option>
+                                    <option value="PTN">PT.Prathita Titiannusantara</option>
+                                    <option value="GMF">PT.Garuda Maintenance Facility Aeroasia</option>
+                                    <option value="LION">Lion Group</option>
+                                    <option value="BAT">Batam Aero Teknik</option>
+                                    <option value="Parewa">PT.Parewa Citra Katering</option>
+                                    <option value="PTSI">PT.Prima Transportasi Servis Indonesia</option>
+                                    <option value="Gajayana">PT.Gajayana Makmkur Sejati</option>
+                                    <option value="IAS">PT.Injourney Airport Service</option>
+                                    <option value="APK">PT.Angkasa Pura Kargo</option>
+                                    <option value="APS">PT.Angkasa Pura Solusi</option>
+                                    <option value="PEMPROV">Pemprov Riau</option>
+                                    <option value="Imigras">Imigrasi</option>
+                                    <option value="Beacukai">Bea Cukai</option>
+                                    <option value="KKP">Balai Karantina Kesehatan</option>
+                                    <option value="Pertamina">Pertamina Patra Niaga</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Jabatan</label>
+                                <input type="text" class="form-control" id="jabatan" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Upload Foto SIM</label>
+                            <input type="file" class="form-control" id="fotoSim" accept="image/*" required>
+                        </div>
+                        <button type="button" class="btn btn-primary w-100" id="btn-register">Submit Data</button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="step-ticket" class="step-section">
+                <div class="card p-4 text-center">
+                    <h5 class="mb-3">Verifikasi Ujian</h5>
+                    
+                    <div class="alert alert-warning">
+                        <strong>Langkah 1:</strong> Klik tombol di bawah agar nama Anda muncul di Dashboard Admin.
+                    </div>
+                    <button class="btn btn-warning w-100 mb-4 fw-bold" id="btn-req">
+                        ✋ REQUEST TICKET KE ADMIN
+                    </button>
+
+                    <hr>
+
+                    <div class="alert alert-info">
+                        <strong>Langkah 2:</strong> Masukkan Kode Tiket yang diberikan oleh Admin.
+                    </div>
+                    <div class="mb-3 text-start">
+                        <label class="form-label">Masukkan Kode Tiket</label>
+                        <input type="text" class="form-control form-control-lg text-center text-uppercase" id="input-ticket" placeholder="CONTOH: TIM-1234">
+                    </div>
+                    <button class="btn btn-success w-100" id="btn-validate">Mulai Ujian</button>
+                </div>
+            </div>
+
+            <div id="step-exam" class="step-section">
+                <div class="card p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5>Soal Ujian (16 Soal)</h5>
+                        <span class="badge bg-danger" id="timer">Waktu: 15:00</span>
+                    </div>
+                    <form id="form-exam">
+                        <div id="questions-container"></div>
+                        <button type="submit" class="btn btn-primary w-100 mt-4">Submit Jawaban</button>
+                    </form>
+                </div>
+            </div>
+
+            <div id="step-result" class="step-section">
+                <div class="card p-5 text-center">
+                    <h2 id="result-title"></h2>
+                    <h1 class="display-4 fw-bold my-3" id="result-score"></h1>
+                    <p id="result-message"></p>
+                    <button class="btn btn-secondary mt-3" id="btn-reload">Selesai</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="assets/logic.js"></script>
+
+<script>
+    // Add event listeners for all elements after DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // Handler Peserta - Form Exam Submit
+        document.getElementById('form-exam').addEventListener('submit', function(e) {
+            e.preventDefault();
+            finishExam(); // Hitung nilai
+        });
+
+        // Button event listeners
+        document.getElementById('btn-register').addEventListener('click', registerUser);
+        document.getElementById('btn-req').addEventListener('click', userRequestTicket);
+        document.getElementById('btn-validate').addEventListener('click', validateTicket);
+        document.getElementById('btn-reload').addEventListener('click', function() { location.reload(); });
+    });
+</script>
+</body>
+</html>

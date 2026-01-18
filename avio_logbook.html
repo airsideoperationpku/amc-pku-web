@@ -33,6 +33,34 @@
     
     <!-- Load logic.js AFTER Supabase client is initialized -->
     <script src="assets/logic.js"></script>
+    
+    <!-- Ensure logout function is available -->
+    <script>
+        // Fallback logout function if logic.js doesn't load properly
+        if (typeof window.logout === 'undefined') {
+            window.logout = async function() {
+                const confirmLogout = confirm('Apakah Anda yakin ingin keluar dari sistem?');
+                if (!confirmLogout) return false;
+                
+                try {
+                    sessionStorage.clear();
+                    localStorage.clear();
+                    
+                    if (window.supabaseClient && window.supabaseClient.auth) {
+                        await window.supabaseClient.auth.signOut();
+                    }
+                    
+                    window.location.href = 'index.html';
+                    return true;
+                } catch (error) {
+                    console.error('Logout error:', error);
+                    alert('Logout berhasil. Anda akan diarahkan ke halaman login.');
+                    window.location.href = 'index.html';
+                    return true;
+                }
+            };
+        }
+    </script>
     <style>
         .hidden { display: none; }
         .form-check-input { cursor: pointer; border: 1px solid #0d6efd; }
@@ -126,13 +154,118 @@
         }
         
         
+        /* Print Header - Only visible when printing */
+        .print-header {
+            display: none;
+        }
+        
         /* CSS Khusus Cetak */
         @media print {
-            .no-print, .btn, .modal { display: none !important; }
-            .card { box-shadow: none; border: 1px solid #ddd; }
-            body { background-color: white; }
+            /* Hide sidebar and unnecessary elements */
+            #sidebar,
+            .no-print, 
+            .btn, 
+            .modal,
+            #sidebarCollapse,
+            .card-header {
+                display: none !important;
+            }
+            
+            /* Show print header */
+            .print-header {
+                display: block !important;
+                text-align: center;
+                margin-bottom: 20px;
+                padding-bottom: 15px;
+                border-bottom: 2px solid #333;
+            }
+            
+            .print-header h2 {
+                margin: 0;
+                font-size: 20px;
+                font-weight: bold;
+                color: #000;
+            }
+            
+            .print-header h3 {
+                margin: 5px 0;
+                font-size: 16px;
+                font-weight: bold;
+                color: #000;
+            }
+            
+            .print-header p {
+                margin: 3px 0;
+                font-size: 12px;
+                color: #333;
+            }
+            
+            /* Adjust content for print */
+            #content {
+                margin-left: 0 !important;
+                width: 100% !important;
+                padding: 20px !important;
+            }
+            
+            .card {
+                box-shadow: none;
+                border: none;
+            }
+            
+            .card-body {
+                padding: 0 !important;
+            }
+            
+            body {
+                background-color: white;
+            }
+            
             /* Pastikan tabel tercetak penuh */
-            .table-responsive { overflow: visible !important; }
+            .table-responsive {
+                overflow: visible !important;
+            }
+            
+            /* Table styling for print */
+            .table {
+                font-size: 11px;
+                border-collapse: collapse;
+                width: 100%;
+            }
+            
+            .table th,
+            .table td {
+                border: 1px solid #000 !important;
+                padding: 5px !important;
+            }
+            
+            .table thead th {
+                background-color: #f0f0f0 !important;
+                font-weight: bold;
+                text-align: center;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            /* Page break settings */
+            .table {
+                page-break-inside: auto;
+            }
+            
+            .table tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+            
+            /* Print summary info */
+            .print-summary {
+                display: block !important;
+                margin-bottom: 15px;
+                font-size: 12px;
+            }
+        }
+        
+        .print-summary {
+            display: none;
         }
     </style>
 </head>
@@ -169,7 +302,7 @@
             </li>
             <li>
                 <a href="#" onclick="showHome(); setActiveMenu(this); return false;" class="active">
-                    <i class="bi bi-journal-plus"></i> Avio Logbook
+                    <i class="bi bi-journal-plus"></i> Aviobridge Logbook
                 </a>
             </li>
              <li>
@@ -204,12 +337,59 @@
         </div>
     </div>
 
+    <!-- Print Header - Only visible when printing -->
+    <div class="print-header">
+        <h2>APRON MOVEMENT CONTROL</h2>
+        <h3>Bandar Udara Sultan Syarif Kasim II Pekanbaru</h3>
+        <p>LOGBOOK AVIOBRIDGE</p>
+        <p id="printDateRange"></p>
+    </div>
+
+    <!-- Print Summary - Only visible when printing -->
+    <div class="print-summary">
+        <strong>Total Data: <span id="printTotalData">0</span></strong> | 
+        <strong>Dicetak: <span id="printDateTime"></span></strong>
+    </div>
+
     <div class="card">
         <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
             <h6 class="m-0 font-weight-bold text-primary">Daftar Log Harian</h6>
             <span class="badge bg-secondary" id="totalData">0 Data</span>
         </div>
         <div class="card-body p-0">
+            <!-- Search/Filter Bar -->
+            <div class="p-3 border-bottom no-print">
+                <div class="row g-2">
+                    <div class="col-md-8">
+                        <div class="input-group">
+                            <span class="input-group-text bg-white">
+                                <i class="bi bi-search"></i>
+                            </span>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="searchInput" 
+                                   placeholder="Cari berdasarkan Flight, Reg, Rute, Type, Stand, Operator..."
+                                   onkeyup="filterTable()">
+                            <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()">
+                                <i class="bi bi-x-lg"></i> Clear
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <select class="form-select" id="filterLeg" onchange="filterTable()">
+                            <option value="">Semua Leg (A/D)</option>
+                            <option value="A">Arrival (A)</option>
+                            <option value="D">Departure (D)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mt-2">
+                    <small class="text-muted">
+                        <i class="bi bi-info-circle"></i> 
+                        Menampilkan <strong id="filteredCount">0</strong> dari <strong id="totalCount">0</strong> data
+                    </small>
+                </div>
+            </div>
             <div class="table-responsive">
                 <table class="table table-hover table-striped align-middle mb-0">
                     <thead class="table-light">
@@ -222,13 +402,14 @@
                             <th>Dom/Intl</th>
                             <th>Type</th>
                             <th>Stand</th>
+                            <th>Block Time</th>
                             <th>Operator</th>
                             <th>Foto</th>
                             <th class="no-print">Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="tableBody">
-                        <tr><td colspan="10" class="text-center py-4">Memuat data...</td></tr>
+                        <tr><td colspan="12" class="text-center py-4">Memuat data...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -251,7 +432,7 @@
                             <label class="form-label">Tanggal</label>
                             <input type="date" class="form-control" id="inputTanggal" required>
                         </div>
-                        
+                                               
                         <div class="col-md-6">
                             <label class="form-label">Registration</label>
                             <input type="text" class="form-control" id="inputReg" placeholder="PK-..." required>
@@ -276,14 +457,14 @@
                         <div class="col-md-4">
                             <label class="form-label">Rute</label>
                             <div class="input-group">
-                                <select class="form-select" id="selectRute"><option value="">Pilih...</option></select>
+                                <select class="form-select" id="selectRute" required><option value="">Pilih...</option></select>
                                 <button class="btn btn-outline-secondary" type="button" onclick="tambahDB('Rute', 'rute')">+</button>
                             </div>
                         </div>
 
                         <div class="col-md-4">
                             <label class="form-label">Leg (A/D)</label>
-                            <select class="form-select" id="selectLeg">
+                            <select class="form-select" id="selectLeg" required>
                                 <option value="A">Arrival (A)</option>
                                 <option value="D">Departure (D)</option>
                             </select>
@@ -291,7 +472,7 @@
 
                         <div class="col-md-4">
                             <label class="form-label">DOM/INTL</label>
-                            <select class="form-select" id="selectDom_Intl">
+                            <select class="form-select" id="selectDom_Intl" required>
                                 <option value="DoM">Domestik</option>
                                 <option value="Intl">Internasional</option>
                             </select>
@@ -300,15 +481,20 @@
                         <div class="col-md-4">
                             <label class="form-label">Parking Stand</label>
                             <div class="input-group">
-                                <select class="form-select" id="selectStand"><option value="">Pilih...</option></select>
+                                <select class="form-select" id="selectStand" required><option value="">Pilih...</option></select>
                                 <button class="btn btn-outline-secondary" type="button" onclick="tambahDB('Stand', 'parking_stand')">+</button>
                             </div>
                         </div>
 
                         <div class="col-md-6">
+                            <label class="form-label">Block Time</label>
+                            <input type="time" class="form-control" id="inputBlockTime" required>
+                        </div>
+
+                        <div class="col-md-6">
                             <label class="form-label">Nama Operator</label>
                             <div class="input-group">
-                                <select class="form-select" id="selectOperator"><option value="">Pilih...</option></select>
+                                <select class="form-select" id="selectOperator" required><option value="">Pilih...</option></select>
                                 <button class="btn btn-outline-secondary" type="button" onclick="tambahDB('Operator', 'operator_name')">+</button>
                             </div>
                         </div>
@@ -373,6 +559,9 @@
     // Use the supabaseClient already initialized in the head section
     const BUCKET_NAME = 'logbook-foto'; // Pastikan bucket ini ada di Supabase Storage
 
+    // Global variable to store all data
+    let allData = [];
+
     // --- 2. FUNGSI LOAD DATA UTAMA ---
     async function loadTable(startDate = null, endDate = null) {
         let query = supabaseClient
@@ -390,15 +579,29 @@
         
         if (error) {
             console.error('Error:', error);
-            tbody.innerHTML = `<tr><td colspan="10" class="text-danger">Gagal memuat data: ${error.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="12" class="text-danger">Gagal memuat data: ${error.message}</td></tr>`;
             return;
         }
 
-        tbody.innerHTML = '';
+        // Store data globally for filtering
+        allData = data;
+        
+        // Update total count
         document.getElementById('totalData').innerText = data.length + ' Data';
+        document.getElementById('totalCount').innerText = data.length;
+        document.getElementById('filteredCount').innerText = data.length;
+
+        // Render table
+        renderTable(data);
+    }
+
+    // --- 2B. FUNGSI RENDER TABLE ---
+    function renderTable(data) {
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
 
         if (data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="10" class="text-center text-muted">Belum ada data</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="12" class="text-center text-muted py-4">Tidak ada data yang sesuai dengan filter</td></tr>`;
             return;
         }
 
@@ -418,6 +621,7 @@
                     <td><span class="badge ${item.dom_intl === 'Dom' ? 'bg-info' : 'bg-warning text-dark'}">${item.dom_intl}</span></td>
                     <td>${item.aircraft_type}</td>
                     <td>${item.parking_stand}</td>
+                    <td>${item.block_time || '-'}</td>
                     <td>${item.operator_name}</td>
                     <td>${fotoDisplay}</td>
                     <td class="no-print">
@@ -429,6 +633,43 @@
             `;
             tbody.innerHTML += row;
         });
+    }
+
+    // --- 2C. FUNGSI FILTER TABLE ---
+    function filterTable() {
+        const searchValue = document.getElementById('searchInput').value.toLowerCase();
+        const legFilter = document.getElementById('filterLeg').value;
+
+        let filteredData = allData.filter(item => {
+            // Text search across multiple fields
+            const searchMatch = 
+                (item.flight_number || '').toLowerCase().includes(searchValue) ||
+                (item.registration || '').toLowerCase().includes(searchValue) ||
+                (item.rute || '').toLowerCase().includes(searchValue) ||
+                (item.aircraft_type || '').toLowerCase().includes(searchValue) ||
+                (item.parking_stand || '').toLowerCase().includes(searchValue) ||
+                (item.operator_name || '').toLowerCase().includes(searchValue) ||
+                (item.tanggal || '').toLowerCase().includes(searchValue) ||
+                (item.block_time || '').toLowerCase().includes(searchValue);
+
+            // Leg filter
+            const legMatch = !legFilter || item.leg === legFilter;
+
+            return searchMatch && legMatch;
+        });
+
+        // Update filtered count
+        document.getElementById('filteredCount').innerText = filteredData.length;
+
+        // Render filtered data
+        renderTable(filteredData);
+    }
+
+    // --- 2D. FUNGSI CLEAR SEARCH ---
+    function clearSearch() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('filterLeg').value = '';
+        filterTable();
     }
 
     // --- 3. FUNGSI LOAD DROPDOWN (DATABASE OTOMATIS) ---
@@ -557,6 +798,7 @@
                 dom_intl: document.getElementById('selectDom_Intl').value,
                 aircraft_type: document.getElementById('selectType').value,
                 parking_stand: document.getElementById('selectStand').value,
+                block_time: document.getElementById('inputBlockTime').value,
                 operator_name: document.getElementById('selectOperator').value,
                 incident: document.getElementById('inputIncident').value,
                 photo_url: finalPhotoUrl
@@ -601,14 +843,44 @@
         // Load data spesifik lalu print
         await loadTable(start, end);
         
+        // Update print header information
+        const startDate = new Date(start).toLocaleDateString('id-ID', { 
+            day: 'numeric', 
+            month: 'long', 
+            year: 'numeric' 
+        });
+        const endDate = new Date(end).toLocaleDateString('id-ID', { 
+            day: 'numeric', 
+            month: 'long', 
+            year: 'numeric' 
+        });
+        
+        document.getElementById('printDateRange').textContent = 
+            `Periode: ${startDate} - ${endDate}`;
+        
+        // Update print summary
+        const totalData = document.getElementById('totalData').textContent;
+        document.getElementById('printTotalData').textContent = totalData;
+        
+        const now = new Date().toLocaleString('id-ID', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        document.getElementById('printDateTime').textContent = now;
+        
         // Tutup modal lalu print
         const modal = bootstrap.Modal.getInstance(document.getElementById('modalCetak'));
         modal.hide();
         
         setTimeout(() => {
             window.print();
-            // Opsional: Reload semua data setelah print selesai (memberi jeda)
-            // loadTable(); 
+            // Reload semua data setelah print selesai
+            setTimeout(() => {
+                loadTable();
+            }, 1000);
         }, 500);
     }
 
@@ -652,4 +924,3 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </body>
 </html>
-

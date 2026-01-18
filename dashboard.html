@@ -107,7 +107,7 @@
     <!-- Sidebar -->
     <nav id="sidebar">
         <div class="sidebar-header">
-            <h3><i class="bi bi-airplane-fill"></i> AMC</h3>
+            <h3><i class="bi bi-building-gear"></i> AMC</h3>
             <p class="mb-0">Sultan Syarif Kasim II</p>
         </div>
 
@@ -132,9 +132,9 @@
                     <i class="bi bi-display"></i> Admin TIM
                 </a>
             </li>
-              <li>
-                 <a href="avio_logbook.html">
-                    <i class="bi bi-journal-plus"></i> Avio Logbook
+            <li>
+                <a href="avio_logbook.html">
+                    <i class="bi bi-journal-plus"></i> Aviobridge Logbook
                 </a>
             </li>
              <li>
@@ -157,12 +157,234 @@
 
         <div id="homePage">
 
-    <div class="card shadow-sm border-0 mb-4">
-        <div id="home" class="content-section active">
-            <h2>Dashboard</h2>
-            <p>Selamat datang di halaman utama aplikasi.</p>
-            <div class="alert alert-info">Login sebagai: <span id="userEmail">Loading...</span></div>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="text-primary"><i class="bi bi-speedometer2"></i> Dashboard Aviobridge</h3>
+            <p class="text-muted mb-0">Login sebagai: <span id="userEmail">Loading...</span></p>
         </div>
+        <div>
+            <button class="btn btn-outline-primary" onclick="refreshDashboard()">
+                <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- Summary Cards Row -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Total Operations</h6>
+                            <h2 class="mb-0" id="totalOperations">0</h2>
+                        </div>
+                        <div class="bg-primary bg-opacity-10 p-3 rounded">
+                            <i class="bi bi-airplane-engines text-primary fs-3"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Arrivals</h6>
+                            <h2 class="mb-0 text-info" id="totalArrivals">0</h2>
+                        </div>
+                        <div class="bg-info bg-opacity-10 p-3 rounded">
+                            <i class="bi bi-airplane-fill text-info fs-3"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Departures</h6>
+                            <h2 class="mb-0 text-warning" id="totalDepartures">0</h2>
+                        </div>
+                        <div class="bg-warning bg-opacity-10 p-3 rounded">
+                            <i class="bi bi-airplane text-warning fs-3"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Aviobridge Used</h6>
+                            <h2 class="mb-0 text-success" id="totalStands">0</h2>
+                        </div>
+                        <div class="bg-success bg-opacity-10 p-3 rounded">
+                            <i class="bi bi-p-square text-success fs-3"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Parking Stand D5, D6, D7, D8 Specific Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <h5 class="text-secondary"><i class="bi bi-pin-map-fill"></i> Aviobridge Usage (D5, D6, D7, D8)</h5>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-primary border-4">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Aviobridge D5</h6>
+                    <h3 class="mb-2 text-primary" id="standD5Total">0</h3>
+                    <div class="small">
+                        <span class="badge bg-info me-1">A: <span id="standD5Arrivals">0</span></span>
+                        <span class="badge bg-warning text-dark">D: <span id="standD5Departures">0</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-success border-4">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Aviobridge D6</h6>
+                    <h3 class="mb-2 text-success" id="standD6Total">0</h3>
+                    <div class="small">
+                        <span class="badge bg-info me-1">A: <span id="standD6Arrivals">0</span></span>
+                        <span class="badge bg-warning text-dark">D: <span id="standD6Departures">0</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-warning border-4">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Aviobridge D7</h6>
+                    <h3 class="mb-2 text-warning" id="standD7Total">0</h3>
+                    <div class="small">
+                        <span class="badge bg-info me-1">A: <span id="standD7Arrivals">0</span></span>
+                        <span class="badge bg-warning text-dark">D: <span id="standD7Departures">0</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100 border-start border-danger border-4">
+                <div class="card-body">
+                    <h6 class="text-muted mb-2">Aviobridge D8</h6>
+                    <h3 class="mb-2 text-danger" id="standD8Total">0</h3>
+                    <div class="small">
+                        <span class="badge bg-info me-1">A: <span id="standD8Arrivals">0</span></span>
+                        <span class="badge bg-warning text-dark">D: <span id="standD8Departures">0</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- All Parking Stands Usage Table -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h6 class="m-0 text-primary"><i class="bi bi-table"></i> Aviobridge Usage</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Aviobridge</th>
+                                    <th class="text-center">Total</th>
+                                    <th class="text-center">Arrivals</th>
+                                    <th class="text-center">Departures</th>
+                                </tr>
+                            </thead>
+                            <tbody id="allStandsTableBody">
+                                <tr><td colspan="4" class="text-center py-3">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dom/Intl Breakdown -->
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h6 class="m-0 text-primary"><i class="bi bi-globe"></i> Domestic vs International</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <div class="p-3 bg-light rounded">
+                                <h6 class="text-muted mb-2">Domestic</h6>
+                                <h2 class="mb-0 text-primary" id="totalDomestic">0</h2>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 bg-light rounded">
+                                <h6 class="text-muted mb-2">International</h6>
+                                <h2 class="mb-0 text-success" id="totalInternational">0</h2>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="small text-muted">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>Domestic Percentage:</span>
+                            <strong id="domesticPercentage">0%</strong>
+                        </div>
+                        <div class="d-flex justify-content-between">
+                            <span>International Percentage:</span>
+                            <strong id="internationalPercentage">0%</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="row g-3">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h6 class="m-0 text-primary"><i class="bi bi-clock-history"></i> Recent Activity (Last 10)</h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Flight</th>
+                                    <th>Registration</th>
+                                    <th>Route</th>
+                                    <th>Leg</th>
+                                    <th>Type</th>
+                                    <th>Stand</th>
+                                    <th>Operator</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recentActivityBody">
+                                <tr><td colspan="8" class="text-center py-3">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
 
 <script>
     // --- KONFIGURASI SUPABASE (Sama dengan file login) ---
@@ -191,6 +413,170 @@
     }
     checkAuth();
 
+    // --- DASHBOARD DATA LOADING FUNCTIONS ---
+    
+    // Load all dashboard data
+    async function loadDashboardData() {
+        try {
+            // Fetch all data from aviobridge_log
+            const { data, error } = await supabaseClient
+                .from('aviobridge_log')
+                .select('*')
+                .order('tanggal', { ascending: false });
+
+            if (error) {
+                console.error('Error loading dashboard data:', error);
+                return;
+            }
+
+            // Calculate statistics
+            calculateStatistics(data);
+            
+            // Load recent activity
+            loadRecentActivity(data.slice(0, 10));
+            
+        } catch (err) {
+            console.error('Error in loadDashboardData:', err);
+        }
+    }
+
+    // Calculate and display statistics
+    function calculateStatistics(data) {
+        // Total operations
+        const totalOps = data.length;
+        document.getElementById('totalOperations').textContent = totalOps;
+
+        // Arrivals and Departures
+        const arrivals = data.filter(item => item.leg === 'A').length;
+        const departures = data.filter(item => item.leg === 'D').length;
+        document.getElementById('totalArrivals').textContent = arrivals;
+        document.getElementById('totalDepartures').textContent = departures;
+
+        // Unique parking stands
+        const uniqueStands = new Set(data.map(item => item.parking_stand).filter(Boolean));
+        document.getElementById('totalStands').textContent = uniqueStands.size;
+
+        // Domestic vs International
+        const domestic = data.filter(item => item.dom_intl === 'DoM' || item.dom_intl === 'Dom').length;
+        const international = data.filter(item => item.dom_intl === 'Intl').length;
+        document.getElementById('totalDomestic').textContent = domestic;
+        document.getElementById('totalInternational').textContent = international;
+
+        // Calculate percentages
+        const domPercentage = totalOps > 0 ? ((domestic / totalOps) * 100).toFixed(1) : 0;
+        const intlPercentage = totalOps > 0 ? ((international / totalOps) * 100).toFixed(1) : 0;
+        document.getElementById('domesticPercentage').textContent = domPercentage + '%';
+        document.getElementById('internationalPercentage').textContent = intlPercentage + '%';
+
+        // Calculate specific parking stand usage (D5, D6, D7, D8)
+        calculateStandUsage(data, 'D5');
+        calculateStandUsage(data, 'D6');
+        calculateStandUsage(data, 'D7');
+        calculateStandUsage(data, 'D8');
+
+        // Calculate all parking stands usage
+        calculateAllStandsUsage(data);
+    }
+
+    // Calculate usage for specific parking stand
+    function calculateStandUsage(data, standName) {
+        const standData = data.filter(item => item.parking_stand === standName);
+        const total = standData.length;
+        const arrivals = standData.filter(item => item.leg === 'A').length;
+        const departures = standData.filter(item => item.leg === 'D').length;
+
+        document.getElementById(`stand${standName}Total`).textContent = total;
+        document.getElementById(`stand${standName}Arrivals`).textContent = arrivals;
+        document.getElementById(`stand${standName}Departures`).textContent = departures;
+    }
+
+    // Calculate all parking stands usage and display in table
+    function calculateAllStandsUsage(data) {
+        // Group by parking stand
+        const standStats = {};
+        
+        data.forEach(item => {
+            const stand = item.parking_stand;
+            if (!stand) return;
+
+            if (!standStats[stand]) {
+                standStats[stand] = { total: 0, arrivals: 0, departures: 0 };
+            }
+
+            standStats[stand].total++;
+            if (item.leg === 'A') standStats[stand].arrivals++;
+            if (item.leg === 'D') standStats[stand].departures++;
+        });
+
+        // Sort by total usage (descending)
+        const sortedStands = Object.entries(standStats)
+            .sort((a, b) => b[1].total - a[1].total);
+
+        // Render table
+        const tbody = document.getElementById('allStandsTableBody');
+        tbody.innerHTML = '';
+
+        if (sortedStands.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted">No data available</td></tr>';
+            return;
+        }
+
+        sortedStands.forEach(([stand, stats]) => {
+            const row = `
+                <tr>
+                    <td><strong>${stand}</strong></td>
+                    <td class="text-center"><span class="badge bg-primary">${stats.total}</span></td>
+                    <td class="text-center"><span class="badge bg-info">${stats.arrivals}</span></td>
+                    <td class="text-center"><span class="badge bg-warning text-dark">${stats.departures}</span></td>
+                </tr>
+            `;
+            tbody.innerHTML += row;
+        });
+    }
+
+    // Load recent activity
+    function loadRecentActivity(recentData) {
+        const tbody = document.getElementById('recentActivityBody');
+        tbody.innerHTML = '';
+
+        if (recentData.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center py-3 text-muted">No recent activity</td></tr>';
+            return;
+        }
+
+        recentData.forEach(item => {
+            const legBadge = item.leg === 'A' 
+                ? '<span class="badge bg-info">A</span>' 
+                : '<span class="badge bg-warning text-dark">D</span>';
+
+            const row = `
+                <tr>
+                    <td>${item.tanggal || '-'}</td>
+                    <td><strong>${item.flight_number || '-'}</strong></td>
+                    <td>${item.registration || '-'}</td>
+                    <td>${item.rute || '-'}</td>
+                    <td>${legBadge}</td>
+                    <td>${item.aircraft_type || '-'}</td>
+                    <td><span class="badge bg-secondary">${item.parking_stand || '-'}</span></td>
+                    <td>${item.operator_name || '-'}</td>
+                </tr>
+            `;
+            tbody.innerHTML += row;
+        });
+    }
+
+    // Refresh dashboard
+    function refreshDashboard() {
+        // Show loading state
+        document.getElementById('totalOperations').textContent = '...';
+        document.getElementById('totalArrivals').textContent = '...';
+        document.getElementById('totalDepartures').textContent = '...';
+        document.getElementById('totalStands').textContent = '...';
+        
+        // Reload data
+        loadDashboardData();
+    }
+
     // Fungsi untuk set active menu
     function setActiveMenu(element) {
         // Remove active class from all menu items
@@ -201,23 +587,23 @@
         element.classList.add('active');
     }
 
-// Toggle sidebar
-document.addEventListener('DOMContentLoaded', function() {
-    // Sidebar toggle functionality
-    const sidebarCollapse = document.getElementById('sidebarCollapse');
-    const sidebar = document.getElementById('sidebar');
-    
-    if (sidebarCollapse) {
-        sidebarCollapse.addEventListener('click', function() {
-            sidebar.classList.toggle('active');
-        });
-    }
-});
+    // Initialize dashboard on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        // Sidebar toggle functionality
+        const sidebarCollapse = document.getElementById('sidebarCollapse');
+        const sidebar = document.getElementById('sidebar');
+        
+        if (sidebarCollapse) {
+            sidebarCollapse.addEventListener('click', function() {
+                sidebar.classList.toggle('active');
+            });
+        }
+
+        // Load dashboard data
+        loadDashboardData();
+    });
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-
-
-

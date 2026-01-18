@@ -20,15 +20,24 @@ const PASSING_GRADE = 70;
 const questionBank = [];
 const sampleQuestions = [
     { q: "Siapakah yang memiliki hak prioritas tertinggi (right of way) di seluruh area sisi udara?", options: ["Mobil VVIP", "Truk Katering", "Bus Penumpang", "Pesawat Udara"], answer: 3 },
-    { q: "Berapakah batas kecepatan maksimal untuk kendaraan di area apron?", options: ["40 km/jam", "20 km/jam", "30 km/jam", "50 km/jam"], answer: 1 },
+    { q: "Berapakah batas kecepatan maksimal untuk kendaraan di area apron?", options: ["40 km/jam", "10 km/jam", "30 km/jam", "20 km/jam"], answer: 1 },
     { q: "Garis marka berwarna merah tebal di area parkir pesawat menandakan...", options: ["Area bebas parkir", "Batas aman pergerakan mesin jet (jet blast)", "Jalur khusus forklift", "Titik berhenti darurat"], answer: 1 },
     { q: "Saat mendekati pesawat yang sedang pushback, apa yang harus Anda lakukan?", options: ["Membunyikan klakson", "Menyalip dari sisi kosong", "Berhenti total pada jarak aman", "Melambatkan kendaraan"], answer: 2 },
+    { q: "Untuk mengendarai kendaraan di Apron, Pengemudi harus memiliki dan membawa", options: ["Pas Bandar Udara yang masih berlaku", "Tanda Izin Mengemudi (TIM) yang masih berlaku", "SIM yang masih berlaku", "PAS dan TIM yang masih berlaku"], answer: 3 },
+    { q: "Suatu daerah di Bandar Udara yang telah ditentukan untuk menempatkan pesawat udara, menaikan dan menurunkan penumpang, kargo, pos, pengisian bahan bakar, parkir dan perawatan pesawat udara disebut dengan?", options: ["Apron", "Taxiway", "Runway", "Service Road"], answer: 0 },
+    { q: "Bagian dari Bandar Udara yang dipergunakan untuk pergerakan Pesawat Udara di darat termasuk Apron disebut dengan?", options: ["Movement Area", "Manouvering Area", "Restricted Area", "Non Public Area"], answer: 0 },
     { q: "Kendaraan apa yang diizinkan beroperasi di sisi udara?", options: ["Semua kendaraan perusahaan", "Hanya kendaraan dengan stiker khusus", "Kendaraan yang memiliki izin masuk sisi udara (pass)", "Hanya mobil staf bandara"], answer: 2 },
+    { q: "Kecepatan Maksimum dalam mengendarai kendaraan di Sisi Udara seperti dibawah ini. Manakah batas kecepatan yang benar?", options: ["Apron 10 Km/Jam, Service Road 15 Km/Jam, Make-up & Break Down Area 25 Km/Jam", "Apron 15 Km/jam, Service Road 10 Km/Jam, Make-up & Break Down Area 15 Km/Jam", "Apron 10 Km/Jam, Service Road 25 Km/Jam, Make-up & Break Down Area 15 Km/Jam", "Apron 20 Km/Jam, Service Road 25 Km/Jam, Make-up & Break Down Area 15 Km/Jam"], answer: 2 },
     { q: "Apa arti dari lampu landasan pacu (runway) yang berwarna putih?", options: ["Tanda awal runway", "Tanda akhir runway", "Tanda tengah runway", "Tanda pinggir runway"], answer: 3 },
+    { q: "Petugas yang bertanggung jawab terhadap pengawasan arus lalu lintas dan aktivitas di sisi udara (Airside) adalah?", options: ["Apron Movement Control", "Aerodrome Control Tower", "Aviation Security", "Terminal Inspection"], answer: 0 },
     { q: "FOD adalah singkatan dari...", options: ["Foreign Object Debris", "Fast Object Damage", "Foreign Object Danger", "Final Obstacle Distance"], answer: 0 },
+    { q: "Syarat utama bagi kendaraan berbahan bakar selain solar yang memasuki daerah pergerakan (Movement Area) adalah", options: ["Harus membawa APAR", "Harus menggunakan Flame Trap", "Harus menggunakan Rotary", "Harus menggunakan Stiker Perusahaan"], answer: 1 },
+    { q: "Jika Terjadi Pelanggaran di Sisi Udara, baik pelanggaran tata tertib maupun aturan berlalu lintas, maka AMC berhak untuk melakukan tindakan sebagai berikut", options: ["Melaporkan ke petugas Pemandu Lalu Lintas/ATC agar menindak pelaku pelanggaran", "Melaporkan ke Dinas Pengamanan untuk menindak pelaku pelanggaran", "Berhak Mencabut atau Menahan TIM dan/atau PAS Bandara pelaku pelanggaran", "Membiarkan kesalahan terjadi"], answer: 2 },
+    { q: "Dalam menarik gerobak atau tangga harus dilakukan dengan menggunakan?", options: ["Mobil Pick-up", "Aircraft Towing Truck (ATT)", "Baggage Towing Truck (BTT)", "High Catering Truck (HCT)"], answer: 2 },
+    { q: "Pada saat kendaraan mengalami mogok/rusak di sisi udara, maka pengemudi harus segera melaporkan kendaraan tersebut ke ?", options: ["Apron Movement Control", "Aerodrome Control Tower", "Aviation Security", "Terminal Inspection"], answer: 0 },
     { q: "Siapa yang bertanggung jawab untuk melaporkan adanya FOD di sisi udara?", options: ["Hanya petugas kebersihan", "Hanya pilot", "Semua personel yang berada di sisi udara", "Hanya petugas keamanan"], answer: 2 },
     { q: "Zona di sekitar mesin jet yang berbahaya karena semburan udara panas disebut...", options: ["Danger Zone", "Red Area", "Blast Pad", "Jet Blast Area"], answer: 3 },
-    { q: "Apa yang harus dilakukan jika Anda melihat tumpahan bahan bakar di apron?", options: ["Membersihkannya sendiri", "Mengabaikannya", "Segera menjauh dan melapor ke unit terkait (PKP-PK/Apron Control)", "Menutupinya dengan pasir"], answer: 2 },
+    { q: "Apa yang harus dilakukan jika Anda melihat tumpahan bahan bakar di apron?", options: ["Membersihkannya sendiri", "Mengabaikannya", "Segera menjauh dan melapor ke unit terkait (PKP-PK/Apron Movement Control)", "Menutupinya dengan pasir"], answer: 2 },
     { q: "Marka 'taxiway centerline' berwarna...", options: ["Putih", "Merah", "Kuning", "Biru"], answer: 2 },
     { q: "Dilarang merokok di seluruh area sisi udara, kecuali di...", options: ["Dalam mobil", "Dekat terminal", "Area merokok yang telah ditentukan (designated smoking area)", "Tidak ada pengecualian, dilarang total"], answer: 3 },
     { q: "Penggunaan telepon seluler saat mengemudi di sisi udara...", options: ["Diperbolehkan jika penting", "Dilarang keras setiap saat", "Hanya boleh dengan hands-free", "Boleh saat kendaraan berhenti"], answer: 1 },
@@ -156,6 +165,8 @@ async function validateTicket() {
         .single();
 
     if (error) return alert("Gagal cek tiket: " + error.message);
+
+    if (!data) return alert("Data peserta tidak ditemukan!");
 
     if (data.status === 'APPROVED' && data.ticket_code === inputCode) {
         startExam();

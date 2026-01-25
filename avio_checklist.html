@@ -423,15 +423,25 @@
         <form id="checklistForm">
             <div class="card mb-3">
                 <div class="card-body row g-3">
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label fw-bold">Tanggal</label>
                         <input type="date" id="inDate" class="form-control" required>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label class="form-label fw-bold">Waktu</label>
                         <input type="time" id="inTime" class="form-control" required>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
+                        <label class="form-label fw-bold">Avio Parking Stand</label>
+                        <select class="form-select" id="inStand" required>
+                            <option value="">Pilih Stand...</option>
+                            <option value="D.05">D.05</option>
+                            <option value="D.06">D.06</option>
+                            <option value="D.07">D.07</option>
+                            <option value="D.08">D.08</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
                         <label class="form-label fw-bold">Nama Operator</label>
                         <div class="input-group">
                             <select class="form-select" id="inOfficer" required>
@@ -524,8 +534,9 @@
             tanggal: document.getElementById('inDate').value,
             waktu: document.getElementById('inTime').value,
             operator_name: document.getElementById('inOfficer').value,
+            parking_stand: document.getElementById('inStand').value, // <--- TAMBAHAN
             kondisi_utama: mainStatus,
-            items: itemsData // Disimpan sebagai JSONB
+            items: itemsData
         };
 
         const { error } = await supabaseClient.from('aviobridge_checklist').insert([payload]);
@@ -558,7 +569,10 @@
             tbody.innerHTML += `
                 <tr>
                     <td class="ps-4 fw-bold">${row.tanggal}<br><small class="text-muted fw-normal">${row.waktu}</small></td>
-                    <td>${row.operator_name}</td>
+                    <td>
+                        ${row.operator_name}<br>
+                        <span class="badge bg-secondary text-light">Stand ${row.parking_stand || '-'}</span>
+                    </td>
                     <td><span class="badge ${badgeClass}">${row.kondisi_utama}</span></td>
                     <td class="text-center">
                         <button class="btn btn-sm btn-info text-white me-1" onclick="viewDetail(${row.id})"><i class="bi bi-eye"></i></button>
@@ -573,7 +587,12 @@
     async function viewDetail(id) {
         const { data } = await supabaseClient.from('aviobridge_checklist').select('*').eq('id', id).single();
         if(data) {
-            let msg = `Tgl: ${data.tanggal}\nPetugas: ${data.operator_name}\nStatus: ${data.kondisi_utama}`;
+            // Update pesan detail
+            let msg = `Tgl: ${data.tanggal} | Jam: ${data.waktu}`;
+            msg += `\nPetugas: ${data.operator_name}`;
+            msg += `\nParking Stand: ${data.parking_stand || '-'}`; // <--- TAMBAHAN
+            msg += `\nStatus: ${data.kondisi_utama}`;
+            
             if(data.kondisi_utama === 'Unserviceable') {
                 msg += '\n\nKETERANGAN: Unit tidak beroperasi.';
             } else {
@@ -618,7 +637,10 @@
             const header = `
                 <div class="text-center mb-3 pt-4">
                     <h3>LAPORAN HARIAN AVIOBRIDGE</h3>
-                    <p>Tanggal: ${row.tanggal} | Waktu: ${row.waktu} | Operator: ${row.operator_name}</p>
+                    <p>
+                        Tanggal: ${row.tanggal} | Waktu: ${row.waktu}<br>
+                        Operator: ${row.operator_name} | <strong>Stand: ${row.parking_stand || '-'}</strong>
+                    </p>
                     <hr>
                 </div>
             `;
@@ -739,4 +761,3 @@
 
 </body>
 </html>
-

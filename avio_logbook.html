@@ -307,7 +307,7 @@
             </li>
             <li>
                 <a href="avio_checklist.html">
-                    <i class="bi bi-person-check"></i> Avio checklist
+                    <i class="bi bi-airplane-fill"></i> Avio checklist
                 </a>
             </li>
              <li>
@@ -478,8 +478,8 @@
                         <div class="col-md-4">
                             <label class="form-label">DOM/INTL</label>
                             <select class="form-select" id="selectDom_Intl" required>
-                                <option value="DoM">Domestik</option>
-                                <option value="Intl">Internasional</option>
+                                <option value="DOM">Domestik</option>
+                                <option value="INTL">Internasional</option>
                             </select>
                         </div>
 
@@ -680,13 +680,8 @@
     // --- 3. FUNGSI LOAD DROPDOWN (DATABASE OTOMATIS) ---
     async function loadDropdowns() {
         const { data, error } = await supabaseClient.from('settings_data').select('*');
-        if (error) {
-            console.error('Gagal load opsi:', error);
-            return;
-        }
-        if (!data || !Array.isArray(data)) return;
+        if (error || !data) return;
 
-        // Mapping kategori DB ke ID Select HTML
         const mapID = {
             'flight_number': 'selectFlight',
             'aircraft_type': 'selectType',
@@ -695,68 +690,41 @@
             'operator_name': 'selectOperator'
         };
 
-        // Reset dan isi ulang
         for (let key in mapID) {
             let select = document.getElementById(mapID[key]);
             if (!select) continue;
-            select.innerHTML = '<option value="">Pilih...</option>'; // Reset
+            
+            // FIX: Bedakan perlakuan untuk selectpicker vs standard select
+            // Selectpicker menggunakan attribute 'title' di HTML sebagai placeholder, jadi innerHTML harus kosong
+            if (select.classList.contains('selectpicker')) {
+                select.innerHTML = ''; 
+            } else {
+                select.innerHTML = '<option value="">Pilih...</option>';
+            }
 
-            // Filter data sesuai kategori
             let options = data.filter(item => item.category === key);
-            options.forEach(opt => {
+            let uniqueValues = [...new Set(options.map(item => item.value))];
+            
+            uniqueValues.sort().forEach(val => {
                 let el = document.createElement('option');
-                el.value = opt.value;
-                el.text = opt.value;
+                el.value = val;
+                el.text = val;
                 select.add(el);
             });
         }
-
-        // Reinitialize Bootstrap Select for BOTH flight_number and aircraft_type to ensure live search works
+        
+        // Refresh bootstrap-select
         try {
-            // Destroy existing instances if they exist
-            if ($('#selectFlight').data('selectpicker')) {
-                $('#selectFlight').selectpicker('destroy');
-            }
-            if ($('#selectType').data('selectpicker')) {
-                $('#selectType').selectpicker('destroy');
-            }
-            
-            // Reinitialize with live search enabled
-            $('#selectFlight').selectpicker({
-                liveSearch: true,
-                liveSearchPlaceholder: 'Cari flight number...',
-                noneResultsText: 'Tidak ditemukan {0}'
-            });
-            
-            $('#selectType').selectpicker({
-                liveSearch: true,
-                liveSearchPlaceholder: 'Cari aircraft type...',
-                noneResultsText: 'Tidak ditemukan {0}'
-            });
-            
-            // Refresh to update the display
             $('#selectFlight').selectpicker('refresh');
             $('#selectType').selectpicker('refresh');
-        } catch (e) {
-            console.error('Error initializing selectpicker:', e);
-        }
+        } catch(e) {}
     }
 
-    // --- 4. FUNGSI TAMBAH OPSIDATABASE ---
-    async function tambahDB(label, dbCategory) {
-        let val = prompt(`Masukkan ${label} baru:`);
+    async function tambahDB(label, cat) {
+        let val = prompt(`Tambah ${label}:`);
         if (!val) return;
-
-        const { error } = await supabaseClient.from('settings_data').insert([{ category: dbCategory, value: val }]);
-        
-        if (error) {
-            alert('Gagal menambah data: ' + error.message);
-        } else {
-            await loadDropdowns(); // Refresh dropdown
-            // Auto select nilai yang baru
-            // (Kode sederhana: user harus memilih ulang manual setelah refresh agar stabil)
-            alert(`${label} berhasil ditambahkan!`);
-        }
+        await supabaseClient.from('settings_data').insert([{ category: cat, value: val }]);
+        await loadDropdowns();
     }
 
     // --- 5. FUNGSI SIMPAN DATA (UPLOAD + INSERT) ---
@@ -891,13 +859,8 @@
 
     // --- INITIALIZATION ---
     window.onload = async function() {
-        // Load dropdowns first (this will initialize selectpicker for flight and type)
         await loadDropdowns();
-        
-        // Load table data
         loadTable();
-
-        // Set default date ke hari ini di form input
         document.getElementById('inputTanggal').value = new Date().toISOString().split('T')[0];
     };
 
@@ -929,6 +892,4 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </body>
 </html>
-
-
 

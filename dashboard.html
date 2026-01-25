@@ -110,8 +110,7 @@
 </head>
 <body class="bg-light">
 
-<div class="wrapper">
-    <!-- Sidebar -->
+<!-- Sidebar -->
     <nav id="sidebar">
         <div class="sidebar-header">
             <h3><i class="bi bi-airplane-fill"></i> AMC</h3>
@@ -146,7 +145,7 @@
             </li>
             <li>
                 <a href="avio_checklist.html">
-                    <i class="bi bi-journal-plus"></i> Avio checklist
+                    <i class="bi bi-person-check"></i> Avio Checklist
                 </a>
             </li>
              <li>
@@ -161,427 +160,375 @@
         </div>
     </nav>
 
-<!-- Page Content -->
+    <!-- Page Content -->
     <div id="content">
-        <button type="button" id="sidebarCollapse" class="btn mb-3">
+        <button type="button" id="sidebarCollapse" class="btn btn-primary mb-3 shadow-sm" onclick="toggleSidebar()">
             <i class="bi bi-list"></i> Menu
         </button>
 
-        <div id="homePage">
-
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h3 class="text-primary"><i class="bi bi-speedometer2"></i> Dashboard Aviobridge</h3>
-            <p class="text-muted mb-0">Login sebagai: <span id="userEmail">Loading...</span></p>
-        </div>
-        <div>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h3 class="text-primary fw-bold"><i class="bi bi-speedometer2"></i> Dashboard Aviobridge</h3>
+                <p class="text-muted mb-0">Login sebagai: <span id="userEmail" class="fw-bold">Loading...</span></p>
+            </div>
             <button class="btn btn-outline-primary" onclick="refreshDashboard()">
-                <i class="bi bi-arrow-clockwise"></i> Refresh
+                <i class="bi bi-arrow-clockwise"></i> Refresh Data
             </button>
         </div>
-    </div>
 
-    <!-- Summary Cards Row -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-1">Total Operations</h6>
-                            <h2 class="mb-0" id="totalOperations">0</h2>
-                        </div>
-                        <div class="bg-primary bg-opacity-10 p-3 rounded">
-                            <i class="bi bi-airplane-engines text-primary fs-3"></i>
+        <div class="row g-3 mb-4">
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div><h6 class="text-muted mb-1">Total Operations</h6><h2 class="mb-0" id="totalOperations">0</h2></div>
+                            <div class="bg-primary bg-opacity-10 p-3 rounded"><i class="bi bi-airplane-engines text-primary fs-3"></i></div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-1">Arrivals</h6>
-                            <h2 class="mb-0 text-info" id="totalArrivals">0</h2>
-                        </div>
-                        <div class="bg-info bg-opacity-10 p-3 rounded">
-                            <i class="bi bi-airplane-fill text-info fs-3"></i>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div><h6 class="text-muted mb-1">Arrivals</h6><h2 class="mb-0 text-info" id="totalArrivals">0</h2></div>
+                            <div class="bg-info bg-opacity-10 p-3 rounded"><i class="bi bi-airplane-fill text-info fs-3"></i></div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-1">Departures</h6>
-                            <h2 class="mb-0 text-warning" id="totalDepartures">0</h2>
-                        </div>
-                        <div class="bg-warning bg-opacity-10 p-3 rounded">
-                            <i class="bi bi-airplane text-warning fs-3"></i>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div><h6 class="text-muted mb-1">Departures</h6><h2 class="mb-0 text-warning" id="totalDepartures">0</h2></div>
+                            <div class="bg-warning bg-opacity-10 p-3 rounded"><i class="bi bi-airplane text-warning fs-3"></i></div>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-1">Aviobridge Used</h6>
-                            <h2 class="mb-0 text-success" id="totalStands">0</h2>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div><h6 class="text-muted mb-1">Stand Used</h6><h2 class="mb-0 text-success" id="totalStandsUsed">0</h2></div>
+                            <div class="bg-success bg-opacity-10 p-3 rounded"><i class="bi bi-p-square text-success fs-3"></i></div>
                         </div>
-                        <div class="bg-success bg-opacity-10 p-3 rounded">
-                            <i class="bi bi-p-square text-success fs-3"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Parking Stand D5, D6, D7, D8 Specific Cards -->
-    <div class="row g-3 mb-4">
-        <div class="col-12">
-            <h5 class="text-secondary"><i class="bi bi-pin-map-fill"></i> Aviobridge Usage (D5, D6, D7, D8)</h5>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100 border-start border-primary border-4">
-                <div class="card-body">
-                    <h6 class="text-muted mb-2">Aviobridge D5</h6>
-                    <h3 class="mb-2 text-primary" id="standD5Total">0</h3>
-                    <div class="small">
-                        <span class="badge bg-info me-1">A: <span id="standD5Arrivals">0</span></span>
-                        <span class="badge bg-warning text-dark">D: <span id="standD5Departures">0</span></span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100 border-start border-success border-4">
-                <div class="card-body">
-                    <h6 class="text-muted mb-2">Aviobridge D6</h6>
-                    <h3 class="mb-2 text-success" id="standD6Total">0</h3>
-                    <div class="small">
-                        <span class="badge bg-info me-1">A: <span id="standD6Arrivals">0</span></span>
-                        <span class="badge bg-warning text-dark">D: <span id="standD6Departures">0</span></span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100 border-start border-warning border-4">
-                <div class="card-body">
-                    <h6 class="text-muted mb-2">Aviobridge D7</h6>
-                    <h3 class="mb-2 text-warning" id="standD7Total">0</h3>
-                    <div class="small">
-                        <span class="badge bg-info me-1">A: <span id="standD7Arrivals">0</span></span>
-                        <span class="badge bg-warning text-dark">D: <span id="standD7Departures">0</span></span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card border-0 shadow-sm h-100 border-start border-danger border-4">
-                <div class="card-body">
-                    <h6 class="text-muted mb-2">Aviobridge D8</h6>
-                    <h3 class="mb-2 text-danger" id="standD8Total">0</h3>
-                    <div class="small">
-                        <span class="badge bg-info me-1">A: <span id="standD8Arrivals">0</span></span>
-                        <span class="badge bg-warning text-dark">D: <span id="standD8Departures">0</span></span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- All Parking Stands Usage Table -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white py-3">
-                    <h6 class="m-0 text-primary"><i class="bi bi-table"></i> Aviobridge Usage</h6>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Aviobridge</th>
-                                    <th class="text-center">Total</th>
-                                    <th class="text-center">Arrivals</th>
-                                    <th class="text-center">Departures</th>
-                                </tr>
-                            </thead>
-                            <tbody id="allStandsTableBody">
-                                <tr><td colspan="4" class="text-center py-3">Loading...</td></tr>
-                            </tbody>
-                        </table>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Dom/Intl Breakdown -->
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white py-3">
-                    <h6 class="m-0 text-primary"><i class="bi bi-globe"></i> Domestic vs International</h6>
+        <div class="row g-3 mb-4">
+            <div class="col-12">
+                <h5 class="text-secondary fw-bold"><i class="bi bi-check-circle-fill"></i> Status Kondisi Aviobridge (Real-time)</h5>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100 status-card status-unknown" id="cardStatus_D5">
+                    <div class="card-body">
+                        <h6 class="text-muted fw-bold">Aviobridge D.05</h6>
+                        <h4 class="mb-2 fw-bold" id="statusText_D5">Checking...</h4>
+                        <div class="d-flex align-items-center mt-3">
+                            <i class="bi bi-clock-history me-2"></i>
+                            <small class="text-muted lh-1" id="lastCheck_D5">-</small>
+                        </div>
+                    </div>
                 </div>
-                <div class="card-body">
-                    <div class="row text-center">
-                        <div class="col-6">
-                            <div class="p-3 bg-light rounded">
-                                <h6 class="text-muted mb-2">Domestic</h6>
-                                <h2 class="mb-0 text-primary" id="totalDomestic">0</h2>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100 status-card status-unknown" id="cardStatus_D6">
+                    <div class="card-body">
+                        <h6 class="text-muted fw-bold">Aviobridge D.06</h6>
+                        <h4 class="mb-2 fw-bold" id="statusText_D6">Checking...</h4>
+                        <div class="d-flex align-items-center mt-3">
+                            <i class="bi bi-clock-history me-2"></i>
+                            <small class="text-muted lh-1" id="lastCheck_D6">-</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100 status-card status-unknown" id="cardStatus_D7">
+                    <div class="card-body">
+                        <h6 class="text-muted fw-bold">Aviobridge D.07</h6>
+                        <h4 class="mb-2 fw-bold" id="statusText_D7">Checking...</h4>
+                        <div class="d-flex align-items-center mt-3">
+                            <i class="bi bi-clock-history me-2"></i>
+                            <small class="text-muted lh-1" id="lastCheck_D7">-</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm h-100 status-card status-unknown" id="cardStatus_D8">
+                    <div class="card-body">
+                        <h6 class="text-muted fw-bold">Aviobridge D.08</h6>
+                        <h4 class="mb-2 fw-bold" id="statusText_D8">Checking...</h4>
+                        <div class="d-flex align-items-center mt-3">
+                            <i class="bi bi-clock-history me-2"></i>
+                            <small class="text-muted lh-1" id="lastCheck_D8">-</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-7">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white py-3">
+                        <h6 class="m-0 text-primary fw-bold"><i class="bi bi-bar-chart-line"></i> Statistik Penggunaan (Logbook)</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Aviobridge</th>
+                                        <th class="text-center">Total Ops</th>
+                                        <th class="text-center">Arrival</th>
+                                        <th class="text-center">Departure</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="allStandsTableBody">
+                                    <tr><td colspan="4" class="text-center py-3">Loading data...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-5">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-header bg-white py-3">
+                        <h6 class="m-0 text-primary fw-bold"><i class="bi bi-globe"></i> Domestik vs Internasional</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center mb-3">
+                            <div class="col-6">
+                                <div class="p-3 bg-light rounded border">
+                                    <h6 class="text-muted mb-2 small">Domestik</h6>
+                                    <h2 class="mb-0 text-primary" id="totalDomestic">0</h2>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="p-3 bg-light rounded border">
+                                    <h6 class="text-muted mb-2 small">Internasional</h6>
+                                    <h2 class="mb-0 text-success" id="totalInternational">0</h2>
+                                </div>
                             </div>
                         </div>
-                        <div class="col-6">
-                            <div class="p-3 bg-light rounded">
-                                <h6 class="text-muted mb-2">International</h6>
-                                <h2 class="mb-0 text-success" id="totalInternational">0</h2>
+                        <div>
+                            <div class="d-flex justify-content-between small text-muted mb-1">
+                                <span>Persentase Domestik</span>
+                                <span id="domesticPercentage">0%</span>
+                            </div>
+                            <div class="progress mb-3" style="height: 6px;">
+                                <div class="progress-bar" id="progDom" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between small text-muted mb-1">
+                                <span>Persentase Internasional</span>
+                                <span id="internationalPercentage">0%</span>
+                            </div>
+                            <div class="progress" style="height: 6px;">
+                                <div class="progress-bar bg-success" id="progIntl" role="progressbar" style="width: 0%"></div>
                             </div>
                         </div>
                     </div>
-                    <hr>
-                    <div class="small text-muted">
-                        <div class="d-flex justify-content-between mb-2">
-                            <span>Domestic Percentage:</span>
-                            <strong id="domesticPercentage">0%</strong>
-                        </div>
-                        <div class="d-flex justify-content-between">
-                            <span>International Percentage:</span>
-                            <strong id="internationalPercentage">0%</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-header bg-white py-3">
+                        <h6 class="m-0 text-primary fw-bold"><i class="bi bi-clock-history"></i> Logbook Terbaru (10 Transaksi Terakhir)</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover mb-0 text-sm">
+                                <thead class="table-primary">
+                                    <tr>
+                                        <th>Tanggal</th>
+                                        <th>Flight No</th>
+                                        <th>Reg</th>
+                                        <th>Rute</th>
+                                        <th>Leg</th>
+                                        <th>Type</th>
+                                        <th>Stand</th>
+                                        <th>Operator</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recentActivityBody">
+                                    <tr><td colspan="8" class="text-center py-3">Loading...</td></tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-
-    <!-- Recent Activity -->
-    <div class="row g-3">
-        <div class="col-12">
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-white py-3">
-                    <h6 class="m-0 text-primary"><i class="bi bi-clock-history"></i> Recent Activity (Last 10)</h6>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Date</th>
-                                    <th>Flight</th>
-                                    <th>Registration</th>
-                                    <th>Route</th>
-                                    <th>Leg</th>
-                                    <th>Type</th>
-                                    <th>Stand</th>
-                                    <th>Operator</th>
-                                </tr>
-                            </thead>
-                            <tbody id="recentActivityBody">
-                                <tr><td colspan="8" class="text-center py-3">Loading...</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
 </div>
 
 <script>
-    // --- KONFIGURASI SUPABASE (Sama dengan file login) ---
+    // --- KONFIGURASI SUPABASE ---
     const supabaseUrl = 'https://voqvauapafsdcmuswsnq.supabase.co';
     const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvcXZhdWFwYWZzZGNtdXN3c25xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNDMxNTYsImV4cCI6MjA4MTcxOTE1Nn0.IJG7ofqfc4Qy44KlbTDGzo4OoQwO0xTXUwKPt04kRnI';
     
-    // Create and expose supabaseClient to window scope IMMEDIATELY
+    // Inisialisasi Client
     if (typeof window.supabase !== 'undefined') {
-        const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
-        window.supabaseClient = supabaseClient;
-        console.log('Supabase client initialized and exposed to window (dashboard)');
-    } else {
-        console.error('Supabase library not loaded!');
+        window.supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
     }
 
-    // --- CEK SESI (PROTEKSI HALAMAN) ---
+    // --- UTILITY: NORMALISASI NAMA STAND (PERBAIKAN UTAMA DISINI) ---
+    // Mengubah "D.05", "D 05", "D05" menjadi "D5" yang seragam
+    function normalizeStandName(name) {
+        if (!name) return "UNKNOWN";
+        // 1. Hapus titik, spasi, dash, dan ubah ke huruf besar
+        // Contoh input: "D.05" -> jadi "D05"
+        let clean = name.replace(/[\.\s\-]/g, '').toUpperCase();
+        
+        // 2. Handle nol di depan angka (contoh: D05 -> D5)
+        // Jika formatnya D + 0 + Angka, buang 0 nya.
+        clean = clean.replace(/^D0+(\d+)/, 'D$1');
+        
+        return clean;
+    }
+
+    // --- CEK SESI ---
     async function checkAuth() {
-        const { data: { session } } = await supabaseClient.auth.getSession();
+        const { data: { session } } = await window.supabaseClient.auth.getSession();
         if (!session) {
-            // Jika tidak ada user login, tendang ke login page
             window.location.href = 'index.html';
         } else {
-            // Tampilkan email user
             document.getElementById('userEmail').innerText = session.user.email;
         }
     }
-    checkAuth();
 
-    // --- DASHBOARD DATA LOADING FUNCTIONS ---
-    
-    // Load all dashboard data
-    async function loadDashboardData() {
-        try {
-            // Fetch all data from aviobridge_log
-            const { data, error } = await supabaseClient
-                .from('aviobridge_log')
-                .select('*')
-                .order('tanggal', { ascending: false });
+    // --- MAIN FUNCTION: REFRESH DATA ---
+    async function refreshDashboard() {
+        // Reset UI indicators
+        document.getElementById('totalOperations').innerText = '...';
+        
+        await Promise.all([
+            loadLogbookStats(), // Untuk Total, Dom/Intl, Tabel Penggunaan
+            loadAvioStatus()    // Untuk Status Serviceable/Unserviceable (D5-D8)
+        ]);
+    }
 
-            if (error) {
-                console.error('Error loading dashboard data:', error);
-                return;
-            }
+    // --- 1. LOAD DATA LOGBOOK & HITUNG STATISTIK ---
+    async function loadLogbookStats() {
+        // Ambil semua data logbook
+        const { data, error } = await window.supabaseClient
+            .from('aviobridge_log')
+            .select('*')
+            .order('tanggal', { ascending: false });
 
-            // Calculate statistics
-            calculateStatistics(data);
-            
-            // Load recent activity
-            loadRecentActivity(data.slice(0, 10));
-            
-        } catch (err) {
-            console.error('Error in loadDashboardData:', err);
+        if (error) {
+            console.error('Logbook Error:', error);
+            return;
         }
-    }
 
-    // Calculate and display statistics
-    function calculateStatistics(data) {
-        // Total operations
+        // --- Perhitungan Total ---
         const totalOps = data.length;
-        document.getElementById('totalOperations').textContent = totalOps;
+        const arrivals = data.filter(i => i.leg === 'A').length;
+        const departures = data.filter(i => i.leg === 'D').length;
 
-        // Arrivals and Departures
-        const arrivals = data.filter(item => item.leg === 'A').length;
-        const departures = data.filter(item => item.leg === 'D').length;
-        document.getElementById('totalArrivals').textContent = arrivals;
-        document.getElementById('totalDepartures').textContent = departures;
+        // Hitung Unique Stand yang digunakan (Normalized)
+        const usedStands = new Set(data.map(i => normalizeStandName(i.parking_stand)));
 
-        // Unique parking stands
-        const uniqueStands = new Set(data.map(item => item.parking_stand).filter(Boolean));
-        document.getElementById('totalStands').textContent = uniqueStands.size;
+        // Update Summary Cards
+        document.getElementById('totalOperations').innerText = totalOps;
+        document.getElementById('totalArrivals').innerText = arrivals;
+        document.getElementById('totalDepartures').innerText = departures;
+        document.getElementById('totalStandsUsed').innerText = usedStands.size;
 
-        // Domestic vs International
-        const domestic = data.filter(item => item.dom_intl === 'DoM' || item.dom_intl === 'Dom').length;
-        const international = data.filter(item => item.dom_intl === 'Intl').length;
-        document.getElementById('totalDomestic').textContent = domestic;
-        document.getElementById('totalInternational').textContent = international;
-
-        // Calculate percentages
-        const domPercentage = totalOps > 0 ? ((domestic / totalOps) * 100).toFixed(1) : 0;
-        const intlPercentage = totalOps > 0 ? ((international / totalOps) * 100).toFixed(1) : 0;
-        document.getElementById('domesticPercentage').textContent = domPercentage + '%';
-        document.getElementById('internationalPercentage').textContent = intlPercentage + '%';
-
-        // Calculate specific parking stand usage (D5, D6, D7, D8)
-        calculateStandUsage(data, 'D5');
-        calculateStandUsage(data, 'D6');
-        calculateStandUsage(data, 'D7');
-        calculateStandUsage(data, 'D8');
-
-        // Calculate all parking stands usage
-        calculateAllStandsUsage(data);
-    }
-
-    // Calculate usage for specific parking stand
-    function calculateStandUsage(data, standName) {
-        // Normalize standName for comparison (trim and uppercase)
-        const normalizedStandName = standName.trim().toUpperCase();
+        // --- Domestik vs Internasional ---
+        const domestic = data.filter(i => (i.dom_intl || '').toLowerCase().includes('dom')).length;
+        const international = data.filter(i => (i.dom_intl || '').toLowerCase().includes('intl')).length;
         
-        // Filter data with normalized comparison
-        const standData = data.filter(item => {
-            if (!item.parking_stand) return false;
-            const normalizedItemStand = item.parking_stand.trim().toUpperCase();
-            return normalizedItemStand === normalizedStandName;
-        });
-        
-        const total = standData.length;
-        const arrivals = standData.filter(item => item.leg === 'A').length;
-        const departures = standData.filter(item => item.leg === 'D').length;
+        document.getElementById('totalDomestic').innerText = domestic;
+        document.getElementById('totalInternational').innerText = international;
 
-        // Update DOM elements
-        const totalElement = document.getElementById(`stand${standName}Total`);
-        const arrivalsElement = document.getElementById(`stand${standName}Arrivals`);
-        const departuresElement = document.getElementById(`stand${standName}Departures`);
-        
-        if (totalElement) totalElement.textContent = total;
-        if (arrivalsElement) arrivalsElement.textContent = arrivals;
-        if (departuresElement) departuresElement.textContent = departures;
-        
-        // Debug logging
-        console.log(`Stand ${standName}: Total=${total}, Arrivals=${arrivals}, Departures=${departures}`);
-    }
+        const pctDom = totalOps ? ((domestic/totalOps)*100).toFixed(1) : 0;
+        const pctIntl = totalOps ? ((international/totalOps)*100).toFixed(1) : 0;
 
-    // Calculate all parking stands usage and display in table
-    function calculateAllStandsUsage(data) {
-        // Group by parking stand
+        document.getElementById('domesticPercentage').innerText = pctDom + '%';
+        document.getElementById('internationalPercentage').innerText = pctIntl + '%';
+        document.getElementById('progDom').style.width = pctDom + '%';
+        document.getElementById('progIntl').style.width = pctIntl + '%';
+
+        // --- Tabel Statistik Penggunaan Per Stand ---
         const standStats = {};
         
-        data.forEach(item => {
-            const stand = item.parking_stand;
-            if (!stand) return;
+        data.forEach(row => {
+            const standRaw = row.parking_stand;
+            if(!standRaw) return;
+            
+            const standKey = normalizeStandName(standRaw); // Group by normalized name (D5, D6, etc)
+            
+            // Format tampilan label: "Aviobridge D.05" (Tambahkan 0 biar rapi jika < 10)
+            let suffix = standKey.replace('D', '');
+            if(suffix.length === 1) suffix = '0' + suffix; 
+            const displayLabel = `Aviobridge D.${suffix}`;
 
-            if (!standStats[stand]) {
-                standStats[stand] = { total: 0, arrivals: 0, departures: 0 };
+            if(!standStats[standKey]) {
+                standStats[standKey] = { label: displayLabel, total: 0, arr: 0, dep: 0 };
             }
-
-            standStats[stand].total++;
-            if (item.leg === 'A') standStats[stand].arrivals++;
-            if (item.leg === 'D') standStats[stand].departures++;
+            
+            standStats[standKey].total++;
+            if(row.leg === 'A') standStats[standKey].arr++;
+            if(row.leg === 'D') standStats[standKey].dep++;
         });
 
-        // Sort by total usage (descending)
-        const sortedStands = Object.entries(standStats)
-            .sort((a, b) => b[1].total - a[1].total);
-
-        // Render table
-        const tbody = document.getElementById('allStandsTableBody');
-        tbody.innerHTML = '';
-
-        if (sortedStands.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted">No data available</td></tr>';
-            return;
+        // Convert to array & Sort
+        const sortedStats = Object.values(standStats).sort((a,b) => b.total - a.total);
+        
+        const tableBody = document.getElementById('allStandsTableBody');
+        tableBody.innerHTML = '';
+        
+        if(sortedStats.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Belum ada data logbook</td></tr>';
+        } else {
+            sortedStats.forEach(s => {
+                tableBody.innerHTML += `
+                    <tr>
+                        <td class="fw-bold">${s.label}</td>
+                        <td class="text-center"><span class="badge bg-primary">${s.total}</span></td>
+                        <td class="text-center text-info fw-bold">${s.arr}</td>
+                        <td class="text-center text-warning fw-bold">${s.dep}</td>
+                    </tr>
+                `;
+            });
         }
 
-        sortedStands.forEach(([stand, stats]) => {
-            const row = `
-                <tr>
-                    <td><strong>${stand}</strong></td>
-                    <td class="text-center"><span class="badge bg-primary">${stats.total}</span></td>
-                    <td class="text-center"><span class="badge bg-info">${stats.arrivals}</span></td>
-                    <td class="text-center"><span class="badge bg-warning text-dark">${stats.departures}</span></td>
-                </tr>
-            `;
-            tbody.innerHTML += row;
-        });
+        // --- Recent Activity (Top 10) ---
+        renderRecentActivity(data.slice(0, 10));
     }
 
-    // Load recent activity
-    function loadRecentActivity(recentData) {
+    function renderRecentActivity(recentData) {
         const tbody = document.getElementById('recentActivityBody');
         tbody.innerHTML = '';
-
         if (recentData.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center py-3 text-muted">No recent activity</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center py-3 text-muted">Tidak ada aktivitas baru</td></tr>';
             return;
         }
-
         recentData.forEach(item => {
             const legBadge = item.leg === 'A' 
                 ? '<span class="badge bg-info">A</span>' 
                 : '<span class="badge bg-warning text-dark">D</span>';
-
-            const row = `
+            tbody.innerHTML += `
                 <tr>
-                    <td>${item.tanggal || '-'}</td>
-                    <td><strong>${item.flight_number || '-'}</strong></td>
+                    <td>${item.tanggal}<br><small class="text-muted">${item.jam_block_on || ''}</small></td>
+                    <td class="fw-bold">${item.flight_number || '-'}</td>
                     <td>${item.registration || '-'}</td>
                     <td>${item.rute || '-'}</td>
                     <td>${legBadge}</td>
@@ -590,64 +537,97 @@
                     <td>${item.operator_name || '-'}</td>
                 </tr>
             `;
-            tbody.innerHTML += row;
         });
     }
 
-    // Refresh dashboard
-    function refreshDashboard() {
-        // Show loading state
-        document.getElementById('totalOperations').textContent = '...';
-        document.getElementById('totalArrivals').textContent = '...';
-        document.getElementById('totalDepartures').textContent = '...';
-        document.getElementById('totalStands').textContent = '...';
-        
-        // Reload data
-        loadDashboardData();
-    }
+    // --- 2. LOAD STATUS CHECKLIST (SERVICEABLE / UNSERVICEABLE) ---
+    async function loadAvioStatus() {
+        // Ambil SEMUA checklist, urutkan dari terbaru
+        // Supaya kita dapat status terakhir untuk setiap stand
+        const { data, error } = await window.supabaseClient
+            .from('aviobridge_checklist')
+            .select('parking_stand, kondisi_utama, tanggal, waktu')
+            .order('tanggal', { ascending: false })
+            .order('waktu', { ascending: false });
 
-    // Fungsi untuk set active menu
-    function setActiveMenu(element) {
-        // Remove active class from all menu items
-        document.querySelectorAll('#sidebar ul li a').forEach(link => {
-            link.classList.remove('active');
-        });
-        // Add active class to clicked item
-        element.classList.add('active');
-    }
-
-    // Initialize dashboard on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        // Sidebar toggle functionality
-        const sidebarCollapse = document.getElementById('sidebarCollapse');
-        const sidebar = document.getElementById('sidebar');
-        
-        if (sidebarCollapse) {
-            sidebarCollapse.addEventListener('click', function() {
-                sidebar.classList.toggle('active');
-            });
+        if (error) {
+            console.error('Checklist Error:', error);
+            return;
         }
 
-        // Load dashboard data
-        loadDashboardData();
-    });
-</script>
+        // Map status terakhir untuk D5, D6, D7, D8
+        // Kunci di map ini HARUS cocok dengan hasil normalizeStandName ("D5", "D6", dst)
+        const statusMap = {
+            'D5': { status: 'Unknown', time: '-' },
+            'D6': { status: 'Unknown', time: '-' },
+            'D7': { status: 'Unknown', time: '-' },
+            'D8': { status: 'Unknown', time: '-' }
+        };
 
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js')
-        .then(registration => {
-          console.log('ServiceWorker registration successful with scope: ', registration.scope);
-        }, err => {
-          console.log('ServiceWorker registration failed: ', err);
+        // Iterasi data dari yang terbaru. 
+        data.forEach(row => {
+            // Normalisasi nama dari DB (misal "D.05" -> jadi "D5")
+            const key = normalizeStandName(row.parking_stand);
+            
+            // Cek apakah key valid (D5-D8) dan belum diisi (karena kita butuh yang terbaru saja)
+            if (statusMap[key] && statusMap[key].status === 'Unknown') {
+                statusMap[key] = {
+                    status: row.kondisi_utama, // "Serviceable" atau "Unserviceable"
+                    time: `${row.tanggal} ${row.waktu}`
+                };
+            }
         });
+
+        // Update UI Cards
+        updateStatusCard('D5', statusMap['D5']);
+        updateStatusCard('D6', statusMap['D6']);
+        updateStatusCard('D7', statusMap['D7']);
+        updateStatusCard('D8', statusMap['D8']);
+    }
+
+    function updateStatusCard(standId, data) {
+        const card = document.getElementById(`cardStatus_${standId}`);
+        const text = document.getElementById(`statusText_${standId}`);
+        const time = document.getElementById(`lastCheck_${standId}`);
+
+        if (!card) return;
+
+        // Reset Classes
+        card.classList.remove('status-serviceable', 'status-unserviceable', 'status-unknown');
+
+        // Logic pewarnaan
+        if (data.status === 'Serviceable') {
+            card.classList.add('status-serviceable');
+            text.innerText = 'SERVICEABLE';
+            text.className = 'mb-2 fw-bold text-success';
+        } else if (data.status === 'Unserviceable') {
+            card.classList.add('status-unserviceable');
+            text.innerText = 'UNSERVICEABLE';
+            text.className = 'mb-2 fw-bold text-danger';
+        } else {
+            card.classList.add('status-unknown');
+            text.innerText = 'NO DATA';
+            text.className = 'mb-2 fw-bold text-secondary';
+        }
+
+        time.innerText = `Update: ${data.time}`;
+    }
+
+    // --- SIDEBAR TOGGLE ---
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const wrapper = document.querySelector('.wrapper');
+        sidebar.classList.toggle('active');
+        wrapper.classList.toggle('sidebar-hidden');
+    }
+
+    // --- INIT ---
+    document.addEventListener('DOMContentLoaded', () => {
+        checkAuth();
+        refreshDashboard();
     });
-  }
 </script>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-
-

@@ -20,7 +20,7 @@
             'wKPt04kRnI';
 
         // Create and expose supabaseClient to window scope IMMEDIATELY
-        // This ensures logic.js logout function can access it
+        // This ensures logic.js logout function  access it
         if (typeof window.supabase !== 'undefined') {
             const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
             window.supabaseClient = supabaseClient;
@@ -338,14 +338,30 @@ window.toggleSidebar = function() {
     }
 };
 
-// Use the globally initialized supabaseClient from window scope
-const supabaseClient = window.supabaseClient;
+function getSupabaseClient() {
+    if (window.supabaseClient) return window.supabaseClient;
+
+    if (typeof window.supabase !== 'undefined') {
+        try {
+            window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+            console.log('Supabase client re-initialized from getSupabaseClient()');
+            return window.supabaseClient;
+        } catch (e) {
+            console.error('Failed to create Supabase client:', e);
+            return null;
+        }
+    }
+
+    console.error('Supabase library belum tersedia');
+    return null;
+}
 
 // Pagination state
-var allLogData = [];
+var allLogData = []; // current page data only
 var currentPage = 1;
 var pageSize = 10;
 var pageGroupSize = 5; // kelipatan 5 untuk nomor halaman
+var totalItems = 0; // total rows in table
 
 function showHome() {
     var homePage = document.getElementById('homePage');
@@ -409,6 +425,12 @@ function handleFile(input) {
 
 function handleSubmit(e) {
     e.preventDefault();
+    var supabaseClient = getSupabaseClient();
+    if (!supabaseClient) {
+        alert("Supabase not initialized");
+        return false;
+    }
+
     var btn = document.getElementById('btnSubmit');
     btn.disabled = true;
     btn.innerText = "Menyimpan...";
@@ -497,44 +519,34 @@ function renderLogRows(tbody, data) {
 
 function renderCurrentPage() {
     var tbody = document.getElementById('logTableBody');
-    var totalItems = allLogData.length;
 
-    if (totalItems === 0) {
+    if (!Array.isArray(allLogData) || allLogData.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center">Belum ada data</td></tr>';
         renderPagination();
         return;
     }
 
-    var totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
-    if (currentPage > totalPages) currentPage = totalPages;
-    if (currentPage < 1) currentPage = 1;
-
-    var start = (currentPage - 1) * pageSize;
-    var end = start + pageSize;
-    var pageData = allLogData.slice(start, end);
-
-    renderLogRows(tbody, pageData);
+    renderLogRows(tbody, allLogData);
     renderPagination();
 }
 
 function changePage(newPage) {
-    var totalPages = Math.max(1, Math.ceil(allLogData.length / pageSize));
+    var totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
     if (newPage < 1 || newPage > totalPages) return;
     currentPage = newPage;
-    renderCurrentPage();
+    loadData();
 }
 
 function setPageSize(size) {
     pageSize = parseInt(size, 10) || 10;
     currentPage = 1;
-    renderCurrentPage();
+    loadData();
 }
 
 function renderPagination() {
     var container = document.getElementById('paginationContainer');
     if (!container) return;
 
-    var totalItems = allLogData.length;
     var totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
 
     var groupStart = Math.floor((currentPage - 1) / pageGroupSize) * pageGroupSize + 1;
@@ -574,79 +586,50 @@ function loadData() {
     var tbody = document.getElementById('logTableBody');
     tbody.innerHTML = '<tr><td colspan="5" class="text-center">Memuat data...</td></tr>';
 
+    var supabaseClient = getSupabaseClient();
     if (!supabaseClient) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-warning">Supabase not initialized</td></tr>';
         return;
     }
 
-    // Ambil data lebih banyak agar pagination bisa berjalan
-    var primaryLimit = 1000;
-    var fallbackLimit = 300;
+    var from = (currentPage - 1) * pageSize;
+    var to = from + pageSize - 1;
 
-    function runQuery(limitValue) {
-        return supabaseClient
-            .from('logbook_daily')
-            .select('id,tanggal,waktu,area,petugas,keterangan,foto')
-            .order('tanggal', { ascending: false })
-            .order('waktu', { ascending: false })
-            .limit(limitValue);
-    }
+    supabaseClient
+        .from('logbook_daily')
+        .select('id,tanggal,waktu,area,petugas,keterangan,foto', { count: 'exact' })
+        .order('tanggal', { ascending: false })
+        .order('waktu', { ascending: false })
+        .range(from, to)
+        .then(function(result) {
+            var data = result.data;
+            var error = result.error;
+            var count = result.count;
 
-    runQuery(primaryLimit).then(function(result) {
-        var data = result.data;
-        var error = result.error;
-
-        if (error) {
-            var isTimeout = error.code === '57014' || (error.message && error.message.toLowerCase().indexOf('statement timeout') !== -1);
-            if (isTimeout) {
-                console.warn('loadData timeout on primary query, retrying with smaller limit...');
-                runQuery(fallbackLimit).then(function(fallbackResult) {
-                    var fallbackData = fallbackResult.data;
-                    var fallbackError = fallbackResult.error;
-
-                    if (fallbackError) {
-                        console.error("loadData fallback error:", fallbackError);
-                        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error memuat data: ' + fallbackError.message + '</td></tr>';
-                        return;
-                    }
-
-                    if (!Array.isArray(fallbackData)) {
-                        console.error("loadData fallback invalid format:", fallbackData);
-                        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Format data tidak valid</td></tr>';
-                        return;
-                    }
-
-                    allLogData = fallbackData;
-                    currentPage = 1;
-                    renderCurrentPage();
-                }).catch(function(fallbackErr) {
-                    console.error("loadData fallback unexpected error:", fallbackErr);
-                    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Terjadi kesalahan saat memuat data</td></tr>';
-                });
+            if (error) {
+                console.error("loadData error:", error);
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error memuat data: ' + error.message + '</td></tr>';
                 return;
             }
 
-            console.error("loadData error:", error);
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error memuat data: ' + error.message + '</td></tr>';
-            return;
-        }
+            if (!Array.isArray(data)) {
+                console.error("loadData invalid format:", data);
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Format data tidak valid</td></tr>';
+                return;
+            }
 
-        if (!Array.isArray(data)) {
-            console.error("loadData invalid format:", data);
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Format data tidak valid</td></tr>';
-            return;
-        }
-
-        allLogData = data;
-        currentPage = 1;
-        renderCurrentPage();
-    }).catch(function(err) {
-        console.error("loadData unexpected error:", err);
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Terjadi kesalahan saat memuat data</td></tr>';
-    });
+            allLogData = data;
+            totalItems = (typeof count === 'number' && count >= 0) ? count : data.length;
+            renderCurrentPage();
+        })
+        .catch(function(err) {
+            console.error("loadData unexpected error:", err);
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Terjadi kesalahan saat memuat data</td></tr>';
+        });
 }
 
 function deleteData(id) {
+    var supabaseClient = getSupabaseClient();
     if (!supabaseClient) {
         alert("Supabase not initialized");
         return;
@@ -659,6 +642,8 @@ function deleteData(id) {
                 console.error("deleteData error:", error);
                 alert("Error: " + error.message);
             } else {
+                var maxPageAfterDelete = Math.max(1, Math.ceil((Math.max(0, totalItems - 1)) / pageSize));
+                if (currentPage > maxPageAfterDelete) currentPage = maxPageAfterDelete;
                 loadData();
             }
         }).catch(function(err) {
@@ -676,6 +661,7 @@ function fetchForPrint() {
         return;
     }
 
+    var supabaseClient = getSupabaseClient();
     if (!supabaseClient) {
         alert("Supabase not initialized");
         return;
@@ -687,7 +673,7 @@ function fetchForPrint() {
         .lte('tanggal', to)
         .order('tanggal', { ascending: true })
         .order('waktu', { ascending: true })
-        .limit(500)
+        .limit(200)
         .then(function(result) {
         var data = result.data;
         var error = result.error;
@@ -737,18 +723,27 @@ function setActiveMenu(element) {
 
 // Expose logout function locally if not already available from logic.js
 if (typeof window.logout === 'undefined') {
-    window.logout = async function() {
-        const confirmLogout = confirm('Apakah Anda yakin ingin keluar dari sistem?');
+    window.logout = function() {
+        var confirmLogout = confirm('Apakah Anda yakin ingin keluar dari sistem?');
         if (!confirmLogout) return false;
-        
+
         try {
             sessionStorage.clear();
             localStorage.clear();
-            
-            if (window.supabaseClient && window.supabaseClient.auth) {
-                await window.supabaseClient.auth.signOut();
+
+            var client = getSupabaseClient();
+            if (client && client.auth && typeof client.auth.signOut === 'function') {
+                client.auth.signOut()
+                    .then(function() {
+                        window.location.href = 'index.html';
+                    })
+                    .catch(function(error) {
+                        console.error('Logout error:', error);
+                        window.location.href = 'index.html';
+                    });
+                return true;
             }
-            
+
             window.location.href = 'index.html';
             return true;
         } catch (error) {

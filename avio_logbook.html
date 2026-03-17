@@ -569,35 +569,55 @@
 
     // --- 2. FUNGSI LOAD DATA UTAMA ---
     async function loadTable(startDate = null, endDate = null) {
-        let query = supabaseClient
-            .from('aviobridge_log')
-            .select('*')
-            .order('tanggal', { ascending: false });
-
-        // Filter Tanggal jika ada (untuk fitur cetak)
-        if (startDate && endDate) {
-            query = query.gte('tanggal', startDate).lte('tanggal', endDate);
-        }
-
-        const { data, error } = await query;
         const tbody = document.getElementById('tableBody');
-        
-        if (error) {
+        const BATCH_SIZE = 1000;
+        let from = 0;
+        let hasMore = true;
+        let combinedData = [];
+
+        try {
+            while (hasMore) {
+                let query = supabaseClient
+                    .from('aviobridge_log')
+                    .select('*')
+                    .order('tanggal', { ascending: false })
+                    .range(from, from + BATCH_SIZE - 1);
+
+                // Filter Tanggal jika ada (untuk fitur cetak)
+                if (startDate && endDate) {
+                    query = query.gte('tanggal', startDate).lte('tanggal', endDate);
+                }
+
+                const { data, error } = await query;
+
+                if (error) {
+                    throw error;
+                }
+
+                const rows = data || [];
+                combinedData = combinedData.concat(rows);
+
+                if (rows.length < BATCH_SIZE) {
+                    hasMore = false;
+                } else {
+                    from += BATCH_SIZE;
+                }
+            }
+
+            // Store data globally for filtering
+            allData = combinedData;
+
+            // Update total count
+            document.getElementById('totalData').innerText = combinedData.length + ' Data';
+            document.getElementById('totalCount').innerText = combinedData.length;
+            document.getElementById('filteredCount').innerText = combinedData.length;
+
+            // Render table
+            renderTable(combinedData);
+        } catch (error) {
             console.error('Error:', error);
             tbody.innerHTML = `<tr><td colspan="12" class="text-danger">Gagal memuat data: ${error.message}</td></tr>`;
-            return;
         }
-
-        // Store data globally for filtering
-        allData = data;
-        
-        // Update total count
-        document.getElementById('totalData').innerText = data.length + ' Data';
-        document.getElementById('totalCount').innerText = data.length;
-        document.getElementById('filteredCount').innerText = data.length;
-
-        // Render table
-        renderTable(data);
     }
 
     // --- 2B. FUNGSI RENDER TABLE ---
@@ -892,6 +912,5 @@ document.addEventListener('DOMContentLoaded', function() {
 
 </body>
 </html>
-
 
 

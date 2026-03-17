@@ -426,24 +426,43 @@
 
     // --- 1. LOAD DATA LOGBOOK & HITUNG STATISTIK ---
     async function loadLogbookStats() {
-        // Ambil semua data logbook
-        const { data, error } = await window.supabaseClient
-            .from('aviobridge_log')
-            .select('*')
-            .order('tanggal', { ascending: false });
+        // Ambil semua data logbook dengan batched pagination (hindari limit default 1000)
+        const batchSize = 1000;
+        let from = 0;
+        let allData = [];
 
-        if (error) {
-            console.error('Logbook Error:', error);
-            return;
+        while (true) {
+            const to = from + batchSize - 1;
+            const { data: chunk, error } = await window.supabaseClient
+                .from('aviobridge_log')
+                .select('*')
+                .order('tanggal', { ascending: false })
+                .range(from, to);
+
+            if (error) {
+                console.error('Logbook Error:', error);
+                return;
+            }
+
+            if (!chunk || chunk.length === 0) break;
+
+            allData = allData.concat(chunk);
+
+            if (chunk.length < batchSize) break;
+            from += batchSize;
         }
 
         // --- Perhitungan Total ---
-        const totalOps = data.length;
-        const arrivals = data.filter(i => i.leg === 'A').length;
-        const departures = data.filter(i => i.leg === 'D').length;
+        const totalOps = allData.length;
+        const arrivals = allData.filter(i => i.leg === 'A').length;
+        const departures = allData.filter(i => i.leg === 'D').length;
 
         // Hitung Unique Stand yang digunakan (Normalized)
-        const usedStands = new Set(data.map(i => normalizeStandName(i.parking_stand)));
+        const usedStands = new Set(allData.map(i => normalizeStandName(i.parking_stand)));
+
+        // Simpan baseline dari logbook.
+        // Nilai ini akan disesuaikan oleh status real-time di loadAvioStatus().
+        window.logbookUsedStandsCount = usedStands.size;
 
         // Update Summary Cards
         document.getElementById('totalOperations').innerText = totalOps;
@@ -452,8 +471,8 @@
         document.getElementById('totalStandsUsed').innerText = usedStands.size;
 
         // --- Domestik vs Internasional ---
-        const domestic = data.filter(i => (i.dom_intl || '').toLowerCase().includes('dom')).length;
-        const international = data.filter(i => (i.dom_intl || '').toLowerCase().includes('intl')).length;
+        const domestic = allData.filter(i => (i.dom_intl || '').toLowerCase().includes('dom')).length;
+        const international = allData.filter(i => (i.dom_intl || '').toLowerCase().includes('intl')).length;
         
         document.getElementById('totalDomestic').innerText = domestic;
         document.getElementById('totalInternational').innerText = international;
@@ -469,7 +488,7 @@
         // --- Tabel Statistik Penggunaan Per Stand ---
         const standStats = {};
         
-        data.forEach(row => {
+        allData.forEach(row => {
             const standRaw = row.parking_stand;
             if(!standRaw) return;
             
@@ -511,7 +530,7 @@
         }
 
         // --- Recent Activity (Top 10) ---
-        renderRecentActivity(data.slice(0, 10));
+        renderRecentActivity(allData.slice(0, 10));
     }
 
     function renderRecentActivity(recentData) {
@@ -583,6 +602,21 @@
         updateStatusCard('D6', statusMap['D6']);
         updateStatusCard('D7', statusMap['D7']);
         updateStatusCard('D8', statusMap['D8']);
+
+        // Stand Used berbasis total kapasitas serviceable aviobridge real-time (4 unit: D5-D8).
+        // Jika status Unserviceable, maka stand used berkurang.
+        const monitoredStands = ['D5', 'D6', 'D7', 'D8'];
+        const totalServiceableCapacity = monitoredStands.length;
+
+        const unserviceableCount = monitoredStands.filter(
+            s => statusMap[s] && statusMap[s].status === 'Unserviceable'
+        ).length;
+
+        // Hanya Unserviceable yang mengurangi.
+        // Unknown tidak mengurangi count.
+        const standUsedFinal = Math.max(0, totalServiceableCapacity - unserviceableCount);
+
+        document.getElementById('totalStandsUsed').innerText = standUsedFinal;
     }
 
     function updateStatusCard(standId, data) {

@@ -395,6 +395,27 @@
                     </small>
                 </div>
             </div>
+            <div class="p-3 border-bottom no-print d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <label for="rowsPerPage" class="mb-0">Show entries</label>
+                    <select id="rowsPerPage" class="form-select form-select-sm" style="width:auto;" onchange="changeRowsPerPage()">
+                        <option value="10" selected>10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
+                <nav aria-label="Table pagination">
+                    <ul class="pagination pagination-sm mb-0" id="paginationList">
+                        <li class="page-item disabled" id="prevPageItem">
+                            <a class="page-link" href="#" onclick="goToPage(currentPage - 1); return false;">Previous</a>
+                        </li>
+                        <li class="page-item disabled" id="nextPageItem">
+                            <a class="page-link" href="#" onclick="goToPage(currentPage + 1); return false;">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
             <div class="table-responsive">
                 <table class="table table-hover table-striped align-middle mb-0">
                     <thead class="table-light">
@@ -566,6 +587,9 @@
 
     // Global variable to store all data
     let allData = [];
+    let filteredData = [];
+    let currentPage = 1;
+    let rowsPerPage = 10;
 
     // --- 2. FUNGSI LOAD DATA UTAMA ---
     async function loadTable(startDate = null, endDate = null) {
@@ -604,16 +628,18 @@
                 }
             }
 
-            // Store data globally for filtering
+            // Store data globally for filtering + pagination
             allData = combinedData;
+            filteredData = combinedData;
+            currentPage = 1;
 
             // Update total count
             document.getElementById('totalData').innerText = combinedData.length + ' Data';
             document.getElementById('totalCount').innerText = combinedData.length;
             document.getElementById('filteredCount').innerText = combinedData.length;
 
-            // Render table
-            renderTable(combinedData);
+            // Render paginated table
+            renderTablePage();
         } catch (error) {
             console.error('Error:', error);
             tbody.innerHTML = `<tr><td colspan="12" class="text-danger">Gagal memuat data: ${error.message}</td></tr>`;
@@ -665,7 +691,7 @@
         const searchValue = document.getElementById('searchInput').value.toLowerCase();
         const legFilter = document.getElementById('filterLeg').value;
 
-        let filteredData = allData.filter(item => {
+        filteredData = allData.filter(item => {
             // Text search across multiple fields
             const searchMatch = 
                 (item.flight_number || '').toLowerCase().includes(searchValue) ||
@@ -683,18 +709,100 @@
             return searchMatch && legMatch;
         });
 
+        currentPage = 1;
+
         // Update filtered count
         document.getElementById('filteredCount').innerText = filteredData.length;
 
-        // Render filtered data
-        renderTable(filteredData);
+        // Render filtered data with pagination
+        renderTablePage();
     }
 
     // --- 2D. FUNGSI CLEAR SEARCH ---
     function clearSearch() {
         document.getElementById('searchInput').value = '';
         document.getElementById('filterLeg').value = '';
-        filterTable();
+        filteredData = [...allData];
+        currentPage = 1;
+        document.getElementById('filteredCount').innerText = filteredData.length;
+        renderTablePage();
+    }
+
+    function renderTablePage() {
+        const total = filteredData.length;
+        const start = (currentPage - 1) * rowsPerPage;
+        const end = start + rowsPerPage;
+        const pageData = filteredData.slice(start, end);
+        renderTable(pageData);
+        renderPagination(total);
+    }
+
+    function renderPagination(totalItems) {
+        const paginationList = document.getElementById('paginationList');
+        const prevItem = document.getElementById('prevPageItem');
+        const nextItem = document.getElementById('nextPageItem');
+
+        const totalPages = Math.max(1, Math.ceil(totalItems / rowsPerPage));
+        if (currentPage > totalPages) currentPage = totalPages;
+
+        prevItem.classList.toggle('disabled', currentPage === 1);
+        nextItem.classList.toggle('disabled', currentPage === totalPages);
+
+        // Remove existing dynamic page items (keep prev and next)
+        Array.from(paginationList.querySelectorAll('.page-number, .page-ellipsis')).forEach(el => el.remove());
+
+        // Show page numbers in windows/groups of 5
+        const windowSize = 5;
+        const currentGroup = Math.floor((currentPage - 1) / windowSize);
+        const startPage = currentGroup * windowSize + 1;
+        const endPage = Math.min(startPage + windowSize - 1, totalPages);
+
+        // Show first page and leading ellipsis if needed
+        if (startPage > 1) {
+            const firstLi = document.createElement('li');
+            firstLi.className = 'page-item page-number';
+            firstLi.innerHTML = `<a class="page-link" href="#" onclick="goToPage(1); return false;">1</a>`;
+            paginationList.insertBefore(firstLi, nextItem);
+
+            const ellipsisStart = document.createElement('li');
+            ellipsisStart.className = 'page-item disabled page-ellipsis';
+            ellipsisStart.innerHTML = `<span class="page-link">...</span>`;
+            paginationList.insertBefore(ellipsisStart, nextItem);
+        }
+
+        // Current group pages (max 5)
+        for (let i = startPage; i <= endPage; i++) {
+            const li = document.createElement('li');
+            li.className = `page-item page-number ${i === currentPage ? 'active' : ''}`;
+            li.innerHTML = `<a class="page-link" href="#" onclick="goToPage(${i}); return false;">${i}</a>`;
+            paginationList.insertBefore(li, nextItem);
+        }
+
+        // Show trailing ellipsis and last page if needed
+        if (endPage < totalPages) {
+            const ellipsisEnd = document.createElement('li');
+            ellipsisEnd.className = 'page-item disabled page-ellipsis';
+            ellipsisEnd.innerHTML = `<span class="page-link">...</span>`;
+            paginationList.insertBefore(ellipsisEnd, nextItem);
+
+            const lastLi = document.createElement('li');
+            lastLi.className = 'page-item page-number';
+            lastLi.innerHTML = `<a class="page-link" href="#" onclick="goToPage(${totalPages}); return false;">${totalPages}</a>`;
+            paginationList.insertBefore(lastLi, nextItem);
+        }
+    }
+
+    function goToPage(page) {
+        const totalPages = Math.max(1, Math.ceil(filteredData.length / rowsPerPage));
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
+        renderTablePage();
+    }
+
+    function changeRowsPerPage() {
+        rowsPerPage = parseInt(document.getElementById('rowsPerPage').value, 10);
+        currentPage = 1;
+        renderTablePage();
     }
 
     // --- 3. FUNGSI LOAD DROPDOWN (DATABASE OTOMATIS) ---

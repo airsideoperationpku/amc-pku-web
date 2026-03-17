@@ -244,6 +244,19 @@
                             <tbody id="logTableBody"></tbody>
                         </table>
                     </div>
+                    <div class="d-flex justify-content-between align-items-center p-3 border-top flex-wrap gap-2 no-print">
+                        <div class="d-flex align-items-center gap-2">
+                            <label for="pageSizeSelect" class="mb-0">Show</label>
+                            <select id="pageSizeSelect" class="form-select form-select-sm" style="width:auto;" onchange="setPageSize(this.value)">
+                                <option value="10">10</option>
+                                <option value="25">25</option>
+                                <option value="50">50</option>
+                                <option value="100">100</option>
+                            </select>
+                            <span>entries</span>
+                        </div>
+                        <div id="paginationContainer"></div>
+                    </div>
                 </div>
             </div>
 
@@ -327,6 +340,12 @@ window.toggleSidebar = function() {
 
 // Use the globally initialized supabaseClient from window scope
 const supabaseClient = window.supabaseClient;
+
+// Pagination state
+var allLogData = [];
+var currentPage = 1;
+var pageSize = 10;
+var pageGroupSize = 5; // kelipatan 5 untuk nomor halaman
 
 function showHome() {
     var homePage = document.getElementById('homePage');
@@ -476,6 +495,81 @@ function renderLogRows(tbody, data) {
     }
 }
 
+function renderCurrentPage() {
+    var tbody = document.getElementById('logTableBody');
+    var totalItems = allLogData.length;
+
+    if (totalItems === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center">Belum ada data</td></tr>';
+        renderPagination();
+        return;
+    }
+
+    var totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+    if (currentPage > totalPages) currentPage = totalPages;
+    if (currentPage < 1) currentPage = 1;
+
+    var start = (currentPage - 1) * pageSize;
+    var end = start + pageSize;
+    var pageData = allLogData.slice(start, end);
+
+    renderLogRows(tbody, pageData);
+    renderPagination();
+}
+
+function changePage(newPage) {
+    var totalPages = Math.max(1, Math.ceil(allLogData.length / pageSize));
+    if (newPage < 1 || newPage > totalPages) return;
+    currentPage = newPage;
+    renderCurrentPage();
+}
+
+function setPageSize(size) {
+    pageSize = parseInt(size, 10) || 10;
+    currentPage = 1;
+    renderCurrentPage();
+}
+
+function renderPagination() {
+    var container = document.getElementById('paginationContainer');
+    if (!container) return;
+
+    var totalItems = allLogData.length;
+    var totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+
+    var groupStart = Math.floor((currentPage - 1) / pageGroupSize) * pageGroupSize + 1;
+    var groupEnd = Math.min(groupStart + pageGroupSize - 1, totalPages);
+
+    var html = '<nav aria-label="Pagination"><ul class="pagination pagination-sm mb-0 flex-wrap">';
+
+    html += '<li class="page-item ' + (currentPage === 1 ? 'disabled' : '') + '">';
+    html += '<button class="page-link" onclick="changePage(' + (currentPage - 1) + ')">Previous</button></li>';
+
+    if (groupStart > 1) {
+        html += '<li class="page-item"><button class="page-link" onclick="changePage(' + (groupStart - 1) + ')">...</button></li>';
+    }
+
+    for (var p = groupStart; p <= groupEnd; p++) {
+        html += '<li class="page-item ' + (p === currentPage ? 'active' : '') + '">';
+        html += '<button class="page-link" onclick="changePage(' + p + ')">' + p + '</button></li>';
+    }
+
+    if (groupEnd < totalPages) {
+        html += '<li class="page-item"><button class="page-link" onclick="changePage(' + (groupEnd + 1) + ')">...</button></li>';
+    }
+
+    html += '<li class="page-item ' + (currentPage === totalPages ? 'disabled' : '') + '">';
+    html += '<button class="page-link" onclick="changePage(' + (currentPage + 1) + ')">Next</button></li>';
+
+    html += '</ul></nav>';
+
+    var startItem = totalItems === 0 ? 0 : ((currentPage - 1) * pageSize + 1);
+    var endItem = Math.min(currentPage * pageSize, totalItems);
+    html += '<small class="text-muted d-block mt-2">Menampilkan ' + startItem + '-' + endItem + ' dari ' + totalItems + ' data</small>';
+
+    container.innerHTML = html;
+}
+
 function loadData() {
     var tbody = document.getElementById('logTableBody');
     tbody.innerHTML = '<tr><td colspan="5" class="text-center">Memuat data...</td></tr>';
@@ -485,9 +579,9 @@ function loadData() {
         return;
     }
 
-    // Batasi jumlah data agar query tidak timeout saat data/foto sudah besar
-    var primaryLimit = 100;
-    var fallbackLimit = 40;
+    // Ambil data lebih banyak agar pagination bisa berjalan
+    var primaryLimit = 1000;
+    var fallbackLimit = 300;
 
     function runQuery(limitValue) {
         return supabaseClient
@@ -522,10 +616,9 @@ function loadData() {
                         return;
                     }
 
-                    renderLogRows(tbody, fallbackData);
-                    if (fallbackData.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="5" class="text-center">Belum ada data</td></tr>';
-                    }
+                    allLogData = fallbackData;
+                    currentPage = 1;
+                    renderCurrentPage();
                 }).catch(function(fallbackErr) {
                     console.error("loadData fallback unexpected error:", fallbackErr);
                     tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Terjadi kesalahan saat memuat data</td></tr>';
@@ -544,10 +637,9 @@ function loadData() {
             return;
         }
 
-        renderLogRows(tbody, data);
-        if (data.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center">Belum ada data</td></tr>';
-        }
+        allLogData = data;
+        currentPage = 1;
+        renderCurrentPage();
     }).catch(function(err) {
         console.error("loadData unexpected error:", err);
         tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Terjadi kesalahan saat memuat data</td></tr>';

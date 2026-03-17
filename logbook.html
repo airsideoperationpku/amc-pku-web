@@ -420,9 +420,12 @@ function handleSubmit(e) {
     };
 
     if (supabaseClient) {
-        supabaseClient.from('logbook_daily').insert([payload]).then(function(response) {
-            if (response.error) {
-                alert("Error: " + response.error.message);
+        supabaseClient.from('logbook_daily').insert([payload]).then(function(result) {
+            var data = result.data;
+            var error = result.error;
+            if (error) {
+                console.error("handleSubmit insert error:", error);
+                alert("Error: " + error.message);
             } else {
                 alert("Data Berhasil Disimpan!");
                 document.getElementById('logForm').reset();
@@ -430,6 +433,11 @@ function handleSubmit(e) {
                 document.getElementById('previewBox').innerHTML = '';
                 showHome();
             }
+            btn.disabled = false;
+            btn.innerText = "Simpan Data";
+        }).catch(function(err) {
+            console.error("handleSubmit unexpected error:", err);
+            alert("Error: " + (err && err.message ? err.message : "Terjadi kesalahan saat menyimpan data"));
             btn.disabled = false;
             btn.innerText = "Simpan Data";
         });
@@ -441,6 +449,33 @@ function handleSubmit(e) {
     return false;
 }
 
+function renderLogRows(tbody, data) {
+    tbody.innerHTML = '';
+    for (var i = 0; i < data.length; i++) {
+        var log = data[i];
+        var row = document.createElement('tr');
+        
+        var petugasBadges = '';
+        var petugasList = Array.isArray(log.petugas) ? log.petugas : [];
+        for (var j = 0; j < petugasList.length; j++) {
+            petugasBadges += '<span class="badge bg-light text-dark border">' + petugasList[j] + '</span> ';
+        }
+        
+        var fotoImages = '';
+        var fotoList = Array.isArray(log.foto) ? log.foto : [];
+        for (var k = 0; k < fotoList.length; k++) {
+            fotoImages += '<img src="' + fotoList[k] + '" class="img-preview">';
+        }
+        
+        row.innerHTML = '<td class="ps-3"><strong>' + log.tanggal + '</strong><br><small>' + log.waktu + ' | ' + log.area + '</small></td>' +
+            '<td>' + petugasBadges + '</td>' +
+            '<td><small>' + log.keterangan + '</small></td>' +
+            '<td>' + fotoImages + '</td>' +
+            '<td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="deleteData(' + log.id + ')"><i class="bi bi-trash"></i></button></td>';
+        tbody.appendChild(row);
+    }
+}
+
 function loadData() {
     var tbody = document.getElementById('logTableBody');
     tbody.innerHTML = '<tr><td colspan="5" class="text-center">Memuat data...</td></tr>';
@@ -450,46 +485,93 @@ function loadData() {
         return;
     }
 
-    supabaseClient.from('logbook_daily').select('*').order('tanggal', { ascending: false }).then(function(response) {
-        if (response.error) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error memuat data</td></tr>';
+    // Batasi jumlah data agar query tidak timeout saat data/foto sudah besar
+    var primaryLimit = 100;
+    var fallbackLimit = 40;
+
+    function runQuery(limitValue) {
+        return supabaseClient
+            .from('logbook_daily')
+            .select('id,tanggal,waktu,area,petugas,keterangan,foto')
+            .order('tanggal', { ascending: false })
+            .order('waktu', { ascending: false })
+            .limit(limitValue);
+    }
+
+    runQuery(primaryLimit).then(function(result) {
+        var data = result.data;
+        var error = result.error;
+
+        if (error) {
+            var isTimeout = error.code === '57014' || (error.message && error.message.toLowerCase().indexOf('statement timeout') !== -1);
+            if (isTimeout) {
+                console.warn('loadData timeout on primary query, retrying with smaller limit...');
+                runQuery(fallbackLimit).then(function(fallbackResult) {
+                    var fallbackData = fallbackResult.data;
+                    var fallbackError = fallbackResult.error;
+
+                    if (fallbackError) {
+                        console.error("loadData fallback error:", fallbackError);
+                        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error memuat data: ' + fallbackError.message + '</td></tr>';
+                        return;
+                    }
+
+                    if (!Array.isArray(fallbackData)) {
+                        console.error("loadData fallback invalid format:", fallbackData);
+                        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Format data tidak valid</td></tr>';
+                        return;
+                    }
+
+                    renderLogRows(tbody, fallbackData);
+                    if (fallbackData.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" class="text-center">Belum ada data</td></tr>';
+                    }
+                }).catch(function(fallbackErr) {
+                    console.error("loadData fallback unexpected error:", fallbackErr);
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Terjadi kesalahan saat memuat data</td></tr>';
+                });
+                return;
+            }
+
+            console.error("loadData error:", error);
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Error memuat data: ' + error.message + '</td></tr>';
             return;
         }
 
-        tbody.innerHTML = '';
-        var data = response.data;
-        for (var i = 0; i < data.length; i++) {
-            var log = data[i];
-            var row = document.createElement('tr');
-            
-            var petugasBadges = '';
-            for (var j = 0; j < log.petugas.length; j++) {
-                petugasBadges += '<span class="badge bg-light text-dark border">' + log.petugas[j] + '</span> ';
-            }
-            
-            var fotoImages = '';
-            for (var k = 0; k < log.foto.length; k++) {
-                fotoImages += '<img src="' + log.foto[k] + '" class="img-preview">';
-            }
-            
-            row.innerHTML = '<td class="ps-3"><strong>' + log.tanggal + '</strong><br><small>' + log.waktu + ' | ' + log.area + '</small></td>' +
-                '<td>' + petugasBadges + '</td>' +
-                '<td><small>' + log.keterangan + '</small></td>' +
-                '<td>' + fotoImages + '</td>' +
-                '<td class="text-center"><button class="btn btn-sm btn-outline-danger" onclick="deleteData(' + log.id + ')"><i class="bi bi-trash"></i></button></td>';
-            tbody.appendChild(row);
+        if (!Array.isArray(data)) {
+            console.error("loadData invalid format:", data);
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Format data tidak valid</td></tr>';
+            return;
         }
+
+        renderLogRows(tbody, data);
+        if (data.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center">Belum ada data</td></tr>';
+        }
+    }).catch(function(err) {
+        console.error("loadData unexpected error:", err);
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Terjadi kesalahan saat memuat data</td></tr>';
     });
 }
 
 function deleteData(id) {
+    if (!supabaseClient) {
+        alert("Supabase not initialized");
+        return;
+    }
+
     if (confirm("Hapus logbook ini?")) {
-        supabaseClient.from('logbook_daily').delete().eq('id', id).then(function(response) {
-            if (response.error) {
-                alert("Error: " + response.error.message);
+        supabaseClient.from('logbook_daily').delete().eq('id', id).then(function(result) {
+            var error = result.error;
+            if (error) {
+                console.error("deleteData error:", error);
+                alert("Error: " + error.message);
             } else {
                 loadData();
             }
+        }).catch(function(err) {
+            console.error("deleteData unexpected error:", err);
+            alert("Terjadi kesalahan saat menghapus data");
         });
     }
 }
@@ -502,39 +584,61 @@ function fetchForPrint() {
         return;
     }
 
-    supabaseClient.from('logbook_daily').select('*').gte('tanggal', from).lte('tanggal', to).order('tanggal', { ascending: true }).then(function(response) {
-        if(response.error) {
-            alert("Error: " + response.error.message);
+    if (!supabaseClient) {
+        alert("Supabase not initialized");
+        return;
+    }
+
+    supabaseClient.from('logbook_daily')
+        .select('id,tanggal,waktu,area,petugas,keterangan,foto')
+        .gte('tanggal', from)
+        .lte('tanggal', to)
+        .order('tanggal', { ascending: true })
+        .order('waktu', { ascending: true })
+        .limit(500)
+        .then(function(result) {
+        var data = result.data;
+        var error = result.error;
+
+        if(error) {
+            console.error("fetchForPrint error:", error);
+            alert("Error: " + error.message);
             return;
         }
         
-        if(response.data.length === 0) {
+        var printData = Array.isArray(data) ? data : [];
+        if(printData.length === 0) {
             alert("Data tidak ditemukan.");
             return;
         }
 
         var rows = '';
-        for (var i = 0; i < response.data.length; i++) {
-            var l = response.data[i];
+        for (var i = 0; i < printData.length; i++) {
+            var l = printData[i];
             var fotoHtml = '';
-            for (var j = 0; j < l.foto.length; j++) {
-                fotoHtml += '<img src="' + l.foto[j] + '" width="60">';
+            var printFotoList = Array.isArray(l.foto) ? l.foto : [];
+            for (var j = 0; j < printFotoList.length; j++) {
+                fotoHtml += '<img src="' + printFotoList[j] + '" width="60">';
             }
-            rows += '<tr><td>' + (i+1) + '</td><td>' + l.tanggal + ' ' + l.waktu + '</td><td>' + l.area + '</td><td>' + l.petugas.join(', ') + '</td><td>' + l.keterangan + '</td><td>' + fotoHtml + '</td></tr>';
+            var printPetugas = Array.isArray(l.petugas) ? l.petugas : [];
+            rows += '<tr><td>' + (i+1) + '</td><td>' + l.tanggal + ' ' + l.waktu + '</td><td>' + l.area + '</td><td>' + printPetugas.join(', ') + '</td><td>' + l.keterangan + '</td><td>' + fotoHtml + '</td></tr>';
         }
 
         document.getElementById('printArea').innerHTML = '<div style="text-align:center"><h3>REKAPITULASI DAILY LOGBOOK</h3><p>Periode: ' + from + ' s/d ' + to + '</p></div><table border="1" style="width:100%; border-collapse: collapse; font-size: 12px"><thead><tr bgcolor="#eee"><th>No</th><th>Waktu</th><th>Area</th><th>Petugas</th><th>Keterangan</th><th>Foto</th></tr></thead><tbody>' + rows + '</tbody></table>';
-        setTimeout(() => window.print(), 100);
+        setTimeout(function() { window.print(); }, 100);
+    }).catch(function(err) {
+        console.error("fetchForPrint unexpected error:", err);
+        alert("Terjadi kesalahan saat menyiapkan data cetak");
     });
 }
 
-
 // Fungsi untuk set active menu
 function setActiveMenu(element) {
-    // Remove active class from all menu items
-    document.querySelectorAll('#sidebar ul li a').forEach(link => {
-        link.classList.remove('active');
-    });
+    // Remove active class from all menu items (ES5-compatible)
+    var links = document.querySelectorAll('#sidebar ul li a');
+    for (var i = 0; i < links.length; i++) {
+        links[i].classList.remove('active');
+    }
     // Add active class to clicked item
     element.classList.add('active');
 }
@@ -584,7 +688,6 @@ document.addEventListener('DOMContentLoaded', function() {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
-
 
 
 

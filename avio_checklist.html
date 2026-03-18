@@ -398,6 +398,23 @@
                         </tbody>
                 </table>
             </div>
+            <div class="card-footer bg-white no-print">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+                    <div class="d-flex align-items-center gap-2">
+                        <label for="rowsPerPageSelect" class="mb-0">Show</label>
+                        <select id="rowsPerPageSelect" class="form-select form-select-sm" style="width: auto;" onchange="changeRowsPerPage(this.value)">
+                            <option value="10" selected>10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                        </select>
+                        <span>entries</span>
+                    </div>
+                    <nav aria-label="Table pagination">
+                        <ul id="paginationControls" class="pagination pagination-sm mb-0"></ul>
+                    </nav>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -494,6 +511,26 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap-select@1.14.0-beta3/dist/js/bootstrap-select.min.js"></script>
 
 <script>
+    let allChecklistData = [];
+    let currentPage = 1;
+    let rowsPerPage = 10;
+    const pageWindowSize = 5;
+
+    function sortChecklistNewestFirst(data) {
+        if (!Array.isArray(data)) return [];
+        return [...data].sort((a, b) => {
+            const aUpdated = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+            const bUpdated = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+            if (bUpdated !== aUpdated) return bUpdated - aUpdated;
+
+            const aCreated = a.created_at ? new Date(a.created_at).getTime() : 0;
+            const bCreated = b.created_at ? new Date(b.created_at).getTime() : 0;
+            if (bCreated !== aCreated) return bCreated - aCreated;
+
+            return (b.id || 0) - (a.id || 0);
+        });
+    }
+
     // 2. LOGIKA CRUD SUPABASE
     // SIMPAN DATA
     document.getElementById('checklistForm').onsubmit = async function(e) {
@@ -543,15 +580,38 @@
         const tbody = document.getElementById('tableBody');
         tbody.innerHTML = '<tr><td colspan="4" class="text-center">Memuat data...</td></tr>';
 
-        const { data, error } = await supabaseClient.from('aviobridge_checklist').select('*').order('created_at', { ascending: false });
+        const { data, error } = await supabaseClient
+            .from('aviobridge_checklist')
+            .select('*')
+            .order('created_at', { ascending: false });
 
         if (error) {
             tbody.innerHTML = `<tr><td colspan="4" class="text-danger text-center">${error.message}</td></tr>`;
+            document.getElementById('paginationControls').innerHTML = '';
             return;
         }
 
+        allChecklistData = sortChecklistNewestFirst(data || []);
+        currentPage = 1;
+
+        renderTablePage();
+        renderPaginationControls();
+    }
+
+    function renderTablePage() {
+        const tbody = document.getElementById('tableBody');
         tbody.innerHTML = '';
-        data.forEach(row => {
+
+        if (!allChecklistData.length) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center">Tidak ada data.</td></tr>';
+            return;
+        }
+
+        const start = (currentPage - 1) * rowsPerPage;
+        const end = start + rowsPerPage;
+        const pageData = allChecklistData.slice(start, end);
+
+        pageData.forEach(row => {
             const badgeClass = row.kondisi_utama === 'Serviceable' ? 'bg-success' : 'bg-danger';
             tbody.innerHTML += `
                 <tr>
@@ -568,6 +628,54 @@
                 </tr>
             `;
         });
+    }
+
+    function renderPaginationControls() {
+        const pagination = document.getElementById('paginationControls');
+        pagination.innerHTML = '';
+
+        const totalPages = Math.max(1, Math.ceil(allChecklistData.length / rowsPerPage));
+        const currentGroup = Math.floor((currentPage - 1) / pageWindowSize);
+        const startPage = currentGroup * pageWindowSize + 1;
+        const endPage = Math.min(startPage + pageWindowSize - 1, totalPages);
+
+        const prevDisabled = currentPage === 1 ? 'disabled' : '';
+        pagination.innerHTML += `
+            <li class="page-item ${prevDisabled}">
+                <button class="page-link" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>Previous</button>
+            </li>
+        `;
+
+        for (let page = startPage; page <= endPage; page++) {
+            const active = page === currentPage ? 'active' : '';
+            pagination.innerHTML += `
+                <li class="page-item ${active}">
+                    <button class="page-link" onclick="goToPage(${page})">${page}</button>
+                </li>
+            `;
+        }
+
+        const nextDisabled = currentPage === totalPages ? 'disabled' : '';
+        pagination.innerHTML += `
+            <li class="page-item ${nextDisabled}">
+                <button class="page-link" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>
+            </li>
+        `;
+    }
+
+    function goToPage(page) {
+        const totalPages = Math.max(1, Math.ceil(allChecklistData.length / rowsPerPage));
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
+        renderTablePage();
+        renderPaginationControls();
+    }
+
+    function changeRowsPerPage(value) {
+        rowsPerPage = parseInt(value, 10);
+        currentPage = 1;
+        renderTablePage();
+        renderPaginationControls();
     }
 
     // VIEW DETAIL (Simple Alert for Now)

@@ -54,6 +54,11 @@
                                     <option value="KKP">Balai Karantina Kesehatan</option>
                                     <option value="Pertamina">Pertamina Patra Niaga</option>
                                 </select>
+                                <div class="input-group mt-2">
+                                    <input type="text" id="newPerusahaan" class="form-control" placeholder="Perusahaan tidak ada? Tambahkan di sini">
+                                    <button type="button" class="btn btn-outline-primary" id="btn-add-company">+ Tambah</button>
+                                </div>
+                                <small class="text-muted">Klik <strong>+ Tambah</strong> untuk menambah perusahaan baru ke daftar.</small>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Jabatan</label>
@@ -137,9 +142,40 @@
         document.getElementById('btn-req').addEventListener('click', userRequestTicket);
         document.getElementById('btn-validate').addEventListener('click', validateTicket);
         document.getElementById('btn-reload').addEventListener('click', function() { location.reload(); });
+
+        // Tambah data perusahaan baru ke dropdown
+        document.getElementById('btn-add-company').addEventListener('click', function () {
+            const selectPerusahaan = document.getElementById('perusahaan');
+            const inputPerusahaan = document.getElementById('newPerusahaan');
+            const namaPerusahaan = inputPerusahaan.value.trim();
+
+            if (!namaPerusahaan) {
+                alert('Silakan isi nama perusahaan terlebih dahulu.');
+                inputPerusahaan.focus();
+                return;
+            }
+
+            const normalizedNew = namaPerusahaan.toLowerCase();
+            const alreadyExists = Array.from(selectPerusahaan.options).some(opt => opt.text.trim().toLowerCase() === normalizedNew);
+
+            if (alreadyExists) {
+                alert('Nama perusahaan sudah ada di daftar.');
+                selectPerusahaan.value = Array.from(selectPerusahaan.options).find(opt => opt.text.trim().toLowerCase() === normalizedNew)?.value || '';
+                inputPerusahaan.value = '';
+                return;
+            }
+
+            const option = document.createElement('option');
+            option.value = namaPerusahaan.replace(/\s+/g, '_').replace(/[^\w-]/g, '');
+            option.text = namaPerusahaan;
+            selectPerusahaan.appendChild(option);
+            selectPerusahaan.value = option.value;
+
+            inputPerusahaan.value = '';
+            inputPerusahaan.focus();
+        });
     });
 </script>
 </body>
 </html>
-
 

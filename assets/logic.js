@@ -1,17 +1,421 @@
 // ==========================================
-// 1. KONEKSI SUPABASE
+// 1. KONEKSI & INISIALISASI (UNIFIED)
 // ==========================================
-// GANTI DENGAN DATA PROJECT ANDA
-const SUPABASE_URL = 'https://voqvauapafsdcmuswsnq.supabase.co'; 
+const SUPABASE_URL = 'https://voqvauapafsdcmuswsnq.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvcXZhdWFwYWZzZGNtdXN3c25xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNDMxNTYsImV4cCI6MjA4MTcxOTE1Nn0.IJG7ofqfc4Qy44KlbTDGzo4OoQwO0xTXUwKPt04kRnI';
 
-// Cek apakah library sudah load
-if (typeof window.supabase === 'undefined') {
-    alert("CRITICAL ERROR: Library Supabase gagal dimuat. Cek koneksi internet atau script tag di HTML.");
+// Pastikan hanya ada satu instance client
+if (!window.supabaseClient) {
+    window.supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 }
 
-// Inisialisasi Client (Gunakan nama variabel '_sb' agar tidak bentrok dengan library global)
-const _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// Alias client: fungsi admin & peserta (loadAdminData, adminGenerateTicket,
+// deleteUser, resetSystem, validateTicket, finishExam) memakai referensi "_sb".
+// Tanpa alias ini akan terjadi "ReferenceError: _sb is not defined"
+// sehingga data tabel Admin TIM tidak pernah muncul.
+if (!window._sb) {
+    window._sb = window.supabaseClient;
+}
+
+// ==========================================
+// 2. LOGIKA HAK AKSES (RBAC)
+// ==========================================
+const ACCESS_RULES = {
+    'Admin': ['checklist.html', 'logbook.html', 'dashboard.html', 'settings.html', 'admintim.html', 'avio_checklist.html', 'avio_logbook.html', 'master-personil.html'],
+    'AMC': ['checklist.html', 'logbook.html', 'dashboard.html', 'settings.html', 'admintim.html', 'avio_checklist.html', 'avio_logbook.html'],
+    'Avio': ['avio_checklist.html', 'avio_logbook.html', 'dashboard.html', 'settings.html'],
+    'TIM': ['admintim.html', 'dashboard.html', 'settings.html']
+};
+
+// Halaman yang boleh diakses oleh semua unit yang sudah login
+const PUBLIC_PAGES = ['dashboard.html', 'settings.html', 'index.html', 'register.html'];
+
+// Sembunyikan item menu sidebar yang tidak diizinkan untuk unit pengguna
+function applySidebarFilter(unit) {
+    const allowedPages = ACCESS_RULES[unit] || [];
+    document.querySelectorAll('#sidebar ul.components li a').forEach((link) => {
+        const href = link.getAttribute('href') || '';
+        if (href && href.endsWith('.html')) {
+            const page = href.split('/').pop();
+            if (!allowedPages.includes(page) && !PUBLIC_PAGES.includes(page)) {
+                const li = link.closest('li');
+                if (li) li.style.display = 'none';
+            }
+        }
+    });
+}
+
+async function checkAccess() {
+    try {
+        const { data: { session } } = await window.supabaseClient.auth.getSession();
+        const currentPage = window.location.pathname.split("/").pop() || 'index.html';
+
+        // 1. Jika tidak ada session, paksa ke login (kecuali sudah di login/register)
+        if (!session) {
+            if (currentPage !== 'index.html' && currentPage !== 'register.html') {
+                window.location.href = 'index.html';
+            }
+            return;
+        }
+
+        // 2. Ambil Profil & Unit
+        const { data: profile, error } = await window.supabaseClient
+            .from('profiles')
+            .select('username, full_name, unit')
+            .eq('id', session.user.id)
+            .single();
+
+        if (error || !profile) {
+            console.warn("Profil tidak ditemukan, pastikan tabel profiles sudah terisi.");
+            return;
+        }
+
+        // 3. Update UI (Safety Check agar tidak error null)
+        const elName = document.getElementById('user-name');
+        const elUnit = document.getElementById('user-unit');
+        const elUsername = document.getElementById('display-username');
+
+        if (elName) elName.innerText = profile.full_name || 'User';
+        if (elUnit) elUnit.innerText = profile.unit || '-';
+        if (elUsername) elUsername.innerText = profile.username || '';
+
+        // 4. Filter Hak Akses Berdasarkan Unit (cache unit agar filter bisa jalan sinkron)
+        const unit = profile.unit;
+        try { sessionStorage.setItem('amcUserUnit', unit); } catch (e) {}
+        applySidebarFilter(unit);
+
+        // Jika halaman saat ini tidak diizinkan, pindahkan ke dashboard
+        if (!PUBLIC_PAGES.includes(currentPage) && !(ACCESS_RULES[unit] || []).includes(currentPage)) {
+            alert(`Unit ${unit} tidak memiliki izin akses ke halaman ini.`);
+            window.location.href = 'dashboard.html';
+        }
+
+    } catch (err) {
+        console.error("RBAC Error:", err);
+    }
+}
+
+// Terapkan filter menu secara sinkron dari cache (sebelum checkAccess async selesai)
+// agar tidak ada "bayangan" semua menu saat berpindah halaman.
+document.addEventListener('DOMContentLoaded', function () {
+    try {
+        const cachedUnit = sessionStorage.getItem('amcUserUnit');
+        if (cachedUnit) applySidebarFilter(cachedUnit);
+    } catch (e) {}
+});
+
+// ==========================================
+// 2B. PROFILE HEADER (SIDEBAR) - Nama, Role, Avatar
+// ==========================================
+async function loadUserProfile() {
+    try {
+        const { data: { session } } = await window.supabaseClient.auth.getSession();
+        if (!session) return;
+
+        const email = session.user.email || '';
+        const fallbackName = email.split('@')[0] || 'User';
+        const metaAvatar = (session.user.user_metadata && session.user.user_metadata.avatar_url) || null;
+
+        const avatarEl = document.getElementById('profileAvatar');
+        const nameEl = document.getElementById('profileName');
+        const roleEl = document.getElementById('profileRole');
+
+        if (nameEl) nameEl.innerText = fallbackName;
+        if (roleEl) roleEl.innerText = 'User';
+        if (avatarEl) {
+            if (metaAvatar) avatarEl.innerHTML = `<img src="${metaAvatar}" alt="avatar">`;
+            else avatarEl.textContent = (fallbackName[0] || 'U').toUpperCase();
+        }
+
+        const { data: profile, error } = await window.supabaseClient
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+        if (error || !profile) return;
+
+        const fullName = profile.full_name || fallbackName;
+        const unit = profile.unit || 'User';
+        const avatarUrl = profile.avatar_url || metaAvatar;
+
+        if (nameEl) nameEl.innerText = fullName;
+        if (roleEl) roleEl.innerText = unit;
+        if (avatarEl) {
+            if (avatarUrl) avatarEl.innerHTML = `<img src="${avatarUrl}" alt="avatar">`;
+            else avatarEl.textContent = (fullName[0] || 'U').toUpperCase();
+        }
+    } catch (err) {
+        console.error('loadUserProfile error:', err);
+    }
+}
+
+function toggleProfileMenu(event) {
+    if (event) event.stopPropagation();
+    const menu = document.getElementById('profileMenu');
+    if (!menu) return;
+
+    if (menu.classList.contains('show')) {
+        menu.classList.remove('show');
+        return;
+    }
+
+    const header = document.querySelector('.profile-header');
+    if (header) {
+        const rect = header.getBoundingClientRect();
+        menu.style.top = 'auto';
+        menu.style.left = rect.left + 'px';
+        menu.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
+        menu.style.width = '200px';
+    }
+    menu.classList.add('show');
+}
+
+function closeProfileMenu() {
+    const menu = document.getElementById('profileMenu');
+    if (menu) menu.classList.remove('show');
+}
+
+// ==========================================
+// MY PROFILE & CHANGE PASSWORD (MODAL)
+// ==========================================
+function escHtml(str) {
+    return String(str == null ? '' : str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function ensureProfileModal() {
+    let modal = document.getElementById('profileModal');
+    if (modal) return modal;
+    modal = document.createElement('div');
+    modal.id = 'profileModal';
+    modal.className = 'modal fade';
+    modal.tabIndex = -1;
+    modal.innerHTML = '<div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="profileModalTitle">Profil</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body" id="profileModalBody"></div><div class="modal-footer" id="profileModalFooter"></div></div></div>';
+    document.body.appendChild(modal);
+    return modal;
+}
+
+function showProfileModal(title, bodyHtml, footerHtml) {
+    const modal = ensureProfileModal();
+    document.getElementById('profileModalTitle').innerText = title || 'Profil';
+    document.getElementById('profileModalBody').innerHTML = bodyHtml;
+    document.getElementById('profileModalFooter').innerHTML = footerHtml || '';
+    const bsModal = bootstrap.Modal.getInstance(modal) || new bootstrap.Modal(modal);
+    bsModal.show();
+}
+
+async function fetchCurrentUserData() {
+    const sb = window.supabaseClient;
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) throw new Error('Tidak ada sesi login.');
+    const userId = session.user.id;
+
+    const { data: profile } = await sb.from('profiles').select('*').eq('id', userId).maybeSingle();
+
+    let personil = null;
+    const { data: pUser, error: eUser } = await sb.from('personil').select('*').eq('user_id', userId).maybeSingle();
+    if (pUser && !eUser) {
+        personil = pUser;
+    } else {
+        const fullName = (profile && profile.full_name) || '';
+        if (fullName) {
+            const { data: pName } = await sb.from('personil').select('*').eq('nama_lengkap', fullName).maybeSingle();
+            personil = pName || null;
+        }
+    }
+    return { session, userId, profile, personil };
+}
+
+async function openMyProfile() {
+    closeProfileMenu();
+    showProfileModal('My Profile', '<div class="text-center py-5"><div class="spinner-border text-primary"></div></div>', '');
+    try {
+        const { session, profile, personil } = await fetchCurrentUserData();
+        const nama = (personil && personil.nama_lengkap) || (profile && profile.full_name) || ((session.user.email || '').split('@')[0]);
+        const jabatan = (personil && personil.jabatan) || '-';
+        const role = (personil && personil.role) || (profile && profile.unit) || '-';
+        const avatarUrl = (profile && profile.avatar_url) || null;
+        const email = session.user.email || '';
+
+        const avatarHtml = avatarUrl
+            ? `<img src="${avatarUrl}" alt="avatar" class="rounded-circle" style="width:100px;height:100px;object-fit:cover">`
+            : `<div class="rounded-circle bg-secondary d-inline-flex align-items-center justify-content-center" style="width:100px;height:100px;font-size:2rem;color:#fff">${escHtml((nama[0] || 'U').toUpperCase())}</div>`;
+
+        const body = `
+            <div class="text-center mb-4">
+                ${avatarHtml}
+                <h5 class="mt-3 mb-1">${escHtml(nama)}</h5>
+                <span class="badge bg-primary">${escHtml(role)}</span>
+            </div>
+            <table class="table table-bordered mb-0">
+                <tr><th style="width:40%">Nama</th><td>${escHtml(nama)}</td></tr>
+                <tr><th>Jabatan</th><td>${escHtml(jabatan)}</td></tr>
+                <tr><th>Role</th><td>${escHtml(role)}</td></tr>
+                <tr><th>Email</th><td>${escHtml(email)}</td></tr>
+            </table>
+        `;
+        const footer = `
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>
+            <button type="button" class="btn btn-primary" onclick="openEditProfile()">Edit Profil</button>
+        `;
+        showProfileModal('My Profile', body, footer);
+    } catch (err) {
+        showProfileModal('My Profile', `<div class="alert alert-danger">Gagal memuat profil: ${escHtml(err.message)}</div>`, '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>');
+    }
+}
+
+async function openEditProfile() {
+    try {
+        const { session, profile } = await fetchCurrentUserData();
+        const currentAvatar = (profile && profile.avatar_url) || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+        const email = session.user.email || '';
+
+        const body = `
+            <div class="text-center mb-3">
+                <img id="editProfileAvatarPreview" src="${currentAvatar}" class="rounded-circle border" style="width:90px;height:90px;object-fit:cover">
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Ganti Foto Profil</label>
+                <input type="file" class="form-control" id="editProfilePhoto" accept="image/*" onchange="previewEditProfilePhoto(this)">
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">User Email</label>
+                <input type="email" class="form-control" id="editProfileEmail" value="${escHtml(email)}" required>
+            </div>
+        `;
+        const footer = `
+            <button type="button" class="btn btn-secondary" onclick="openMyProfile()">Kembali</button>
+            <button type="button" class="btn btn-primary" id="btnSaveProfile" onclick="saveProfile()">Simpan</button>
+        `;
+        showProfileModal('Edit Profil', body, footer);
+    } catch (err) {
+        showProfileModal('Edit Profil', `<div class="alert alert-danger">Gagal: ${escHtml(err.message)}</div>`, '<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button>');
+    }
+}
+
+function previewEditProfilePhoto(input) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            document.getElementById('editProfileAvatarPreview').src = e.target.result;
+        };
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+
+async function saveProfile() {
+    const sb = window.supabaseClient;
+    const btn = document.getElementById('btnSaveProfile');
+    btn.disabled = true;
+    try {
+        const { data: { user } } = await sb.auth.getUser();
+        const newEmail = document.getElementById('editProfileEmail').value.trim();
+        const fileInput = document.getElementById('editProfilePhoto');
+        const file = fileInput.files[0];
+
+        if (newEmail && newEmail !== user.email) {
+            const { error: emailErr } = await sb.auth.updateUser({ email: newEmail });
+            if (emailErr) throw emailErr;
+        }
+        if (file) {
+            const path = 'avatars/' + user.id;
+            const { error: upErr } = await sb.storage.from('avatars').upload(path, file, { upsert: true });
+            if (upErr) throw upErr;
+            const { data: url } = sb.storage.from('avatars').getPublicUrl(path);
+            const { error: profErr } = await sb.from('profiles').update({ avatar_url: url.publicUrl }).eq('id', user.id);
+            if (profErr) throw profErr;
+        }
+
+        alert('Profil berhasil diperbarui.');
+        const modal = bootstrap.Modal.getInstance(document.getElementById('profileModal'));
+        if (modal) modal.hide();
+        if (typeof loadUserProfile === 'function') loadUserProfile();
+    } catch (err) {
+        alert('Gagal menyimpan: ' + (err && err.message ? err.message : err));
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+function openChangePassword() {
+    closeProfileMenu();
+    const body = `
+        <div class="mb-3">
+            <label class="form-label fw-bold">Password Saat Ini</label>
+            <input type="password" class="form-control" id="cpCurrent" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label fw-bold">Password Baru</label>
+            <input type="password" class="form-control" id="cpNew" minlength="6" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label fw-bold">Konfirmasi Password Baru</label>
+            <input type="password" class="form-control" id="cpConfirm" minlength="6" required>
+        </div>
+    `;
+    const footer = `
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+        <button type="button" class="btn btn-primary" id="btnChangePass" onclick="changePassword()">Perbarui Password</button>
+    `;
+    showProfileModal('Change Password', body, footer);
+}
+
+async function changePassword() {
+    const sb = window.supabaseClient;
+    const btn = document.getElementById('btnChangePass');
+    const current = document.getElementById('cpCurrent').value;
+    const newPass = document.getElementById('cpNew').value;
+    const confirm = document.getElementById('cpConfirm').value;
+
+    if (!current || !newPass || !confirm) { alert('Semua kolom wajib diisi.'); return; }
+    if (newPass.length < 6) { alert('Password baru minimal 6 karakter.'); return; }
+    if (newPass !== confirm) { alert('Konfirmasi password baru tidak cocok.'); return; }
+
+    btn.disabled = true;
+    try {
+        const { data: { session } } = await sb.auth.getSession();
+        const email = session.user.email;
+
+        // Verifikasi password saat ini dengan sign-in ulang
+        const { error: verifyErr } = await sb.auth.signInWithPassword({ email, password: current });
+        if (verifyErr) {
+            alert('Password saat ini salah. Tidak dapat memperbarui password.');
+            return;
+        }
+
+        const { error: updateErr } = await sb.auth.updateUser({ password: newPass });
+        if (updateErr) throw updateErr;
+
+        alert('Password berhasil diperbarui.');
+        const modal = bootstrap.Modal.getInstance(document.getElementById('profileModal'));
+        if (modal) modal.hide();
+    } catch (err) {
+        alert('Gagal memperbarui password: ' + (err && err.message ? err.message : err));
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+document.addEventListener('click', function (e) {
+    const header = document.querySelector('.profile-header');
+    const menu = document.getElementById('profileMenu');
+    if (menu && menu.classList.contains('show') && header && !header.contains(e.target)) {
+        menu.classList.remove('show');
+    }
+});
+
+window.loadUserProfile = loadUserProfile;
+window.toggleProfileMenu = toggleProfileMenu;
+window.openMyProfile = openMyProfile;
+window.openChangePassword = openChangePassword;
+window.openEditProfile = openEditProfile;
+window.saveProfile = saveProfile;
+window.changePassword = changePassword;
+
+// Jalankan saat startup
+document.addEventListener('DOMContentLoaded', checkAccess);
 
 // ==========================================
 // 2. KONFIGURASI & BANK SOAL
@@ -238,12 +642,57 @@ async function finishExam() {
 // 5. FUNGSI ADMIN (BACKEND)
 // ==========================================
 
+// Cache unit pengguna & pembatasan akses untuk halaman Admin TIM
+let _unitPromise = null;
+
+function getCurrentUnit() {
+    if (_unitPromise) return _unitPromise;
+    _unitPromise = (async function () {
+        try {
+            const cu = sessionStorage.getItem('amcUserUnit');
+            if (cu) return cu;
+        } catch (e) {}
+        try {
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (session) {
+                const { data: profile } = await window.supabaseClient
+                    .from('profiles')
+                    .select('unit')
+                    .eq('id', session.user.id)
+                    .single();
+                const unit = (profile && profile.unit) || '';
+                if (unit) {
+                    try { sessionStorage.setItem('amcUserUnit', unit); } catch (e) {}
+                }
+                return unit;
+            }
+        } catch (e) {
+            console.error('getCurrentUnit error:', e);
+        }
+        return '';
+    })();
+    return _unitPromise;
+}
+
+// Sembunyikan elemen khusus admin (header Aksi & tombol Reset) untuk role TIM
+function applyAdminRestrictions(isTim) {
+    if (!isTim) return;
+    document.querySelectorAll('.admin-only').forEach(el => {
+        el.style.display = 'none';
+    });
+}
+
 async function loadAdminData() {
     const reqTable = document.getElementById('request-table-body');
     const resTable = document.getElementById('result-table-body');
     
     // Safety check: Kalau element tidak ada (berarti lagi di halaman Peserta), stop.
     if (!reqTable || !resTable) return; 
+
+    // Tentukan role user (TIM = read-only: sembunyikan aksi & reset)
+    const unit = await getCurrentUnit();
+    const isTim = unit === 'TIM';
+    applyAdminRestrictions(isTim);
 
     const filterStart = document.getElementById('filter-start').value;
     const filterEnd = document.getElementById('filter-end').value;
@@ -272,11 +721,12 @@ async function loadAdminData() {
                     <td>${new Date(user.created_at).toLocaleTimeString()}</td>
                     <td class="fw-bold">${user.nama}</td>
                     <td>${user.perusahaan}</td>
+                    ${isTim ? '' : `
                     <td>
                         <button class="btn btn-sm btn-primary" onclick="adminGenerateTicket('${user.id}', '${user.nama}')">
                             🔑 Buat Tiket
                         </button>
-                    </td>
+                    </td>`}
                 </tr>
             `;
         }
@@ -305,9 +755,10 @@ async function loadAdminData() {
                 <td class="font-monospace text-primary fw-bold">${user.ticket_code || '-'}</td>
                 <td class="fw-bold">${user.score || 0}</td>
                 <td>${badge}</td>
+                ${isTim ? '' : `
                 <td class="no-print">
                     <button class="btn btn-sm btn-danger" onclick="deleteUser('${user.id}')">Hapus</button>
-                </td>
+                </td>`}
             </tr>
         `;
     });
@@ -462,6 +913,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Expose logout again to ensure it's available
     window.logout = logout;
     console.log('DOMContentLoaded: Logout function re-exposed');
+    loadUserProfile();
     
     // Cek kita ada di halaman mana - hanya jalankan jika element ada
     const requestTableBody = document.getElementById('request-table-body');
@@ -479,3 +931,105 @@ document.addEventListener('DOMContentLoaded', () => {
         // Untuk sekarang biarkan default
     }
 });
+
+// ==========================================
+// 8. THEME (LIGHT / DARK) — GLOBAL UNTUK SEMUA HALAMAN
+// ==========================================
+window.AMC_THEME_CSS = `
+/* Tombol toggle tema (floating pill, kanan-bawah) */
+.theme-toggle-btn{position:fixed;bottom:18px;right:18px;z-index:2000;width:48px;height:48px;border-radius:50%;border:none;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);color:#fff;font-size:1.15rem;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);transition:transform .15s ease,box-shadow .15s ease}
+.theme-toggle-btn:hover{transform:scale(1.08);box-shadow:0 6px 20px rgba(0,0,0,.35)}
+/* ===== DARK MODE OVERRIDES ===== */
+[data-bs-theme="dark"] .theme-toggle-btn{background:#2a5298;color:#ffd54f}
+[data-bs-theme="dark"] body{background-color:#141a24 !important;color:#e9ecef}
+[data-bs-theme="dark"] .card-header.bg-white,
+[data-bs-theme="dark"] .card-footer.bg-white,
+[data-bs-theme="dark"] .bg-white{background-color:#1f2733 !important;color:#e9ecef}
+[data-bs-theme="dark"] .input-group-text.bg-white{background-color:#1f2733 !important;color:#e9ecef;border-color:#343a40}
+[data-bs-theme="dark"] .card-header.text-white{color:#fff !important}
+[data-bs-theme="dark"] .text-dark{color:#f8f9fa !important}
+[data-bs-theme="dark"] .text-white-50{color:rgba(255,255,255,.6) !important}
+[data-bs-theme="dark"] .bg-light{background-color:#1a2332 !important}
+[data-bs-theme="dark"] .bg-light.rounded.border{border-color:#343a40 !important}
+[data-bs-theme="dark"] .table{--bs-table-color:#e9ecef;--bs-table-bg:transparent}
+[data-bs-theme="dark"] .table-light{--bs-table-bg:#1f2733;--bs-table-color:#e9ecef;color:#e9ecef}
+[data-bs-theme="dark"] .table-striped>tbody>tr:nth-of-type(odd)>*{--bs-table-accent-bg:rgba(255,255,255,.03)}
+[data-bs-theme="dark"] .table-clean thead th{background:#16233f}
+[data-bs-theme="dark"] .table-clean tbody td{border-bottom-color:#2a3442;color:#e9ecef}
+[data-bs-theme="dark"] .table-clean tbody tr:nth-of-type(even){background-color:#223047}
+[data-bs-theme="dark"] .table-clean tbody tr:nth-of-type(odd){background-color:#1a2332}
+[data-bs-theme="dark"] .table-clean tbody tr:hover{background-color:#2c3b54}
+[data-bs-theme="dark"] .profile-menu{background:#1f2733;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+[data-bs-theme="dark"] #sidebar .profile-menu li a{color:#e9ecef}
+[data-bs-theme="dark"] #sidebar .profile-menu li a:hover{background:#2a3442;color:#fff}
+[data-bs-theme="dark"] #sidebar .profile-menu li a i{color:#7fa6e0}
+[data-bs-theme="dark"] .border{border-color:#2a3442 !important}
+[data-bs-theme="dark"] .border-bottom{border-bottom-color:#2a3442 !important}
+[data-bs-theme="dark"] .border-top{border-top-color:#2a3442 !important}
+[data-bs-theme="dark"] .modal-content{background-color:#1f2733;color:#e9ecef}
+[data-bs-theme="dark"] .page-link{background-color:#1f2733;border-color:#343a40;color:#e9ecef}
+[data-bs-theme="dark"] .page-item.disabled .page-link{background-color:#1a2332;color:#6c757d}
+[data-bs-theme="dark"] .dropdown-menu{background-color:#1f2733}
+`;
+(function () {
+    const THEME_KEY = 'amcTheme';
+
+    function currentTheme() {
+        try { return localStorage.getItem(THEME_KEY) || 'light'; } catch (e) { return 'light'; }
+    }
+
+    function updateToggleIcon(theme) {
+        const icon = document.getElementById('themeToggleIcon');
+        if (icon) icon.className = theme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+    }
+
+    function applyTheme(theme) {
+        const root = document.documentElement;
+        if (theme === 'dark') root.setAttribute('data-bs-theme', 'dark');
+        else root.removeAttribute('data-bs-theme');
+        updateToggleIcon(theme);
+    }
+
+    window.toggleTheme = function () {
+        const next = currentTheme() === 'dark' ? 'light' : 'dark';
+        try { localStorage.setItem(THEME_KEY, next); } catch (e) {}
+        applyTheme(next);
+    };
+    window.applyTheme = applyTheme;
+    window.currentTheme = currentTheme;
+
+    function injectThemeCss() {
+        if (document.getElementById('amcThemeCss')) return;
+        const style = document.createElement('style');
+        style.id = 'amcThemeCss';
+        style.textContent = window.AMC_THEME_CSS || '';
+        document.head.appendChild(style);
+    }
+
+    function injectToggleButton() {
+        if (document.getElementById('themeToggle')) return;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.id = 'themeToggle';
+        btn.className = 'theme-toggle-btn';
+        btn.title = 'Ganti tema (Light/Dark)';
+        btn.setAttribute('aria-label', 'Ganti tema');
+        btn.innerHTML = '<i class="bi bi-moon-stars-fill" id="themeToggleIcon"></i>';
+        btn.addEventListener('click', window.toggleTheme);
+        document.body.appendChild(btn);
+    }
+
+    applyTheme(currentTheme());
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () {
+            injectThemeCss();
+            injectToggleButton();
+            updateToggleIcon(currentTheme());
+        });
+    } else {
+        injectThemeCss();
+        injectToggleButton();
+        updateToggleIcon(currentTheme());
+    }
+})();

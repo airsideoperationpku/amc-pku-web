@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Master Personil - AMC PKU</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <!-- Supabase JS v2 -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- RBAC, profil, logout & filter menu sidebar (shared) -->
+    <script src="assets/logic.js"></script>
+
+    <style>
+        body { font-family: 'Poppins', sans-serif; }
+
+        #sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            display: flex;
+            flex-direction: column;
+            width: 250px;
+            height: 100vh;
+            background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            transition: width 0.3s ease;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+            z-index: 1000;
+            overflow-x: hidden;
+            white-space: nowrap;
+        }
+
+        #sidebar.collapsed { width: 70px; }
+
+        #sidebar .sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 15px;
+            background: rgba(0,0,0,0.2);
+            min-height: 64px;
+        }
+
+        #sidebar.collapsed .sidebar-header { justify-content: center; padding: 15px 0; }
+
+        #sidebar .brand h3 { margin: 0; font-size: 1.15rem; font-weight: 600; white-space: nowrap; }
+        #sidebar .brand p { margin: 0; font-size: .72rem; color: rgba(255,255,255,0.75); white-space: nowrap; }
+        #sidebar.collapsed .brand { display: none; }
+
+        .sidebar-toggle-btn {
+            background: rgba(255,255,255,0.15);
+            border: none;
+            color: #fff;
+            width: 34px;
+            height: 34px;
+            flex-shrink: 0;
+            border-radius: 5px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.05rem;
+            transition: background 0.2s;
+        }
+
+        .sidebar-toggle-btn:hover { background: rgba(255,255,255,0.3); }
+
+        #sidebar ul.components { flex: 1 1 auto; padding: 10px 0; margin: 0; list-style: none; }
+
+        #sidebar ul li a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 16px;
+            margin: 2px 8px;
+            font-size: .95rem;
+            color: rgba(255,255,255,0.8);
+            text-decoration: none;
+            transition: all 0.3s;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+
+        #sidebar ul li a i { font-size: 1.25rem; min-width: 30px; text-align: center; flex-shrink: 0; }
+        #sidebar.collapsed ul li a { justify-content: center; padding: 11px 0; margin: 2px 10px; }
+
+        #sidebar ul li a:hover,
+        #sidebar ul li a.active { color: #fff; background: rgba(255,255,255,0.12); }
+
+        .nav-text { transition: opacity 0.25s ease; white-space: nowrap; }
+        #sidebar.collapsed .nav-text { opacity: 0; width: 0; overflow: hidden; }
+
+        #content { margin-left: 70px; padding: 20px; min-height: 100vh; transition: margin-left 0.3s ease; }
+        #sidebar:not(.collapsed) ~ #content { margin-left: 250px; }
+
+        .wrapper { width: 100%; position: relative; }
+        /* ==========================================
+           PROFILE HEADER (SIDEBAR)
+        ========================================== */
+        .sidebar-profile {
+            position: relative;
+            margin-top: auto;
+            border-top: 1px solid rgba(255,255,255,0.15);
+        }
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .profile-header:hover { background: rgba(255,255,255,0.08); }
+        .profile-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            background: rgba(255,255,255,0.2);
+            border: 2px solid rgba(255,255,255,0.4);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1.05rem;
+            color: #fff;
+            overflow: hidden;
+        }
+        .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .profile-info { flex: 1; min-width: 0; }
+        .profile-name {
+            font-size: .95rem;
+            font-weight: 600;
+            color: #fff;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .profile-role {
+            font-size: .72rem;
+            color: rgba(255,255,255,0.7);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .profile-caret { color: rgba(255,255,255,0.7); font-size: .8rem; flex-shrink: 0; }
+
+        #sidebar.collapsed .profile-header { justify-content: center; padding: 12px 0; }
+        #sidebar.collapsed .profile-info,
+        #sidebar.collapsed .profile-caret { display: none; }
+
+        .profile-menu {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            list-style: none;
+            padding: 6px 0;
+            margin: 0;
+            width: 200px;
+        }
+        .profile-menu.show { display: block; }
+        #sidebar .profile-menu li a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 14px;
+            margin: 0;
+            color: #333;
+            font-size: .85rem;
+            text-decoration: none;
+            transition: background 0.15s;
+            border-radius: 0;
+        }
+        #sidebar .profile-menu li a:hover { background: #f0f3f8; color: #333; }
+        #sidebar .profile-menu li a i { font-size: 1rem; min-width: 18px; color: #1e3c72; }
+
+        .sidebar-footer { padding: 0 14px 12px; }
+        .sidebar-footer small { font-size: .68rem; }
+        #sidebar.collapsed .sidebar-footer { display: none; }
+        /* ==========================================
+           FLOATING ACTION BUTTON (TAMBAH PERSONIL) — MOBILE ONLY
+        ========================================== */
+        .fab-add {
+            display: none;
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            z-index: 1500;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            font-weight: 600;
+            font-size: .95rem;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: transform .15s ease, box-shadow .15s ease;
+        }
+        .fab-add i { font-size: 1.1rem; }
+        .fab-add:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,0.35); }
+        @media (max-width: 767.98px) {
+            .fab-add { display: inline-flex; }
+        }
+    </style>
+</head>
+<body class="bg-light">
+
+<div class="wrapper">
+    <!-- Sidebar -->
+    <nav id="sidebar" class="collapsed">
+        <div class="sidebar-header">
+            <div class="brand">
+                <h3><i class="bi bi-airplane-fill"></i> AMC</h3>
+                <p>Sultan Syarif Kasim II</p>
+            </div>
+            <button type="button" class="sidebar-toggle-btn" onclick="toggleSidebar()" aria-label="Buka/Tutup menu" title="Buka/Tutup menu">
+                <i class="bi bi-chevron-double-right"></i>
+            </button>
+        </div>
+
+        <ul class="list-unstyled components">
+            <li><a href="dashboard.html"><i class="bi bi-house"></i> <span class="nav-text">Dashboard</span></a></li>
+            <li><a href="checklist.html"><i class="bi bi-card-checklist"></i> <span class="nav-text">Checklist</span></a></li>
+            <li><a href="logbook.html"><i class="bi bi-journal-check"></i> <span class="nav-text">Logbook</span></a></li>
+            <li><a href="admintim.html"><i class="bi bi-display"></i> <span class="nav-text">Admin TIM</span></a></li>
+            <li><a href="avio_logbook.html"><i class="bi bi-journal-plus"></i> <span class="nav-text">Avio Logbook</span></a></li>
+            <li><a href="avio_checklist.html"><i class="bi bi-person-check"></i> <span class="nav-text">Avio Checklist</span></a></li>
+            <li><a href="#" onclick="setActiveMenu(this); return false;" class="active"><i class="bi bi-person-fill-gear"></i> <span class="nav-text">Master Personil</span></a></li>
+            <li><a href="#" onclick="logout(); return false;"><i class="bi bi-box-arrow-right"></i> <span class="nav-text">Logout</span></a></li>
+        </ul>
+
+        <div class="sidebar-profile">
+            <div class="profile-header" onclick="toggleProfileMenu(event)">
+                <div class="profile-avatar" id="profileAvatar">U</div>
+                <div class="profile-info">
+                    <div class="profile-name" id="profileName">Memuat...</div>
+                    <div class="profile-role" id="profileRole">Role</div>
+                </div>
+                <i class="bi bi-chevron-up profile-caret"></i>
+            </div>
+            <ul class="profile-menu" id="profileMenu">
+                <li><a href="#" onclick="openMyProfile(); return false;"><i class="bi bi-person"></i> My Profile</a></li>
+                <li><a href="#" onclick="openChangePassword(); return false;"><i class="bi bi-key"></i> Change Password</a></li>
+            </ul>
+        </div>
+        <div class="sidebar-footer">
+            <small class="text-white-50">Apron Movement Control PKU</small>
+        </div>
+    </nav>
+
+    <!-- Page Content -->
+    <div id="content">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h3 class="text-primary fw-bold"><i class="bi bi-people-fill"></i> Master Personil</h3>
+                <p class="text-muted mb-0">Kelola data personil, jabatan, dan role pengguna.</p>
+            </div>
+            <button class="btn btn-primary shadow-sm d-none d-md-inline-flex align-items-center gap-1" onclick="openAddModal()">
+                <i class="bi bi-person-plus me-1"></i> Tambah Personil
+            </button>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <h6 class="m-0 text-primary fw-bold"><i class="bi bi-list-ul"></i> Daftar Personil</h6>
+                <div class="input-group input-group-sm" style="width: 280px;">
+                    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="searchInput" placeholder="Cari NIK / nama / jabatan / role..." onkeyup="renderTable()">
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Personil</th>
+                            <th>Jabatan</th>
+                            <th>Role</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="personilTableBody">
+                        <tr><td colspan="5" class="text-center py-4">Memuat data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-footer bg-white text-muted small">
+                Total: <strong id="totalCount">0</strong> personil
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Tambah / Edit Personil -->
+<div class="modal fade" id="modalPersonil" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Tambah Personil</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="personilForm">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">NIK Pegawai <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="inputNik" placeholder="Contoh: 1234567" maxlength="30" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Nama Lengkap Personil <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="inputNama" placeholder="Nama lengkap..." maxlength="150" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Jabatan <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="inputJabatan" placeholder="Contoh: Petugas Apron Movement Control" maxlength="100" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Role <span class="text-danger">*</span></label>
+                        <select class="form-select" id="inputRole" required>
+                            <option value="">-- Pilih Role --</option>
+                            <option value="Admin">Admin</option>
+                            <option value="AMC">AMC</option>
+                            <option value="Avio">Avio</option>
+                            <option value="TIM">TIM</option>
+                        </select>
+                        <small class="text-muted">Role menentukan hak akses menu aplikasi.</small>
+                    </div>
+                    <div id="loginFields">
+                        <hr class="my-3">
+                        <div class="fw-bold small text-muted mb-2"><i class="bi bi-key"></i> Info Login (Akun Aplikasi)</div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Username (Email Login) <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="inputUsername" placeholder="Contoh: budi123" maxlength="50">
+                                <span class="input-group-text">@amcpku.com</span>
+                            </div>
+                            <small class="text-muted">Gunakan username ini saat login. Email login: username@amcpku.com</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Password <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" id="inputPassword" placeholder="Minimal 6 karakter" minlength="6">
+                            <small class="text-muted">Password digunakan untuk masuk ke aplikasi.</small>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="button" id="btnSave" class="btn btn-primary" onclick="savePersonil()">
+                    <span id="btnLoading" class="spinner-border spinner-border-sm d-none"></span>
+                    Simpan
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Floating Action Button (mobile only) untuk Tambah Personil -->
+<button type="button" class="fab-add" onclick="openAddModal()" aria-label="Tambah Personil">
+    <i class="bi bi-person-plus"></i> Tambah Personil
+</button>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // --- KONFIGURASI SUPABASE ---
+    // Client Supabase sudah dibuat oleh assets/logic.js (window.supabaseClient).
+    // JANGAN mendeklarasikan ulang const SUPABASE_URL / SUPABASE_KEY di sini (redeclare = SyntaxError).
+    const sb = window.supabaseClient;
+
+    let allPersonil = [];
+    let editId = null;
+
+    function esc(str) {
+        return String(str == null ? '' : str)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // --- LOAD DATA ---
+    async function loadPersonil() {
+        const tbody = document.getElementById('personilTableBody');
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">Memuat data...</td></tr>';
+
+        const { data, error } = await sb
+            .from('personil')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">Gagal memuat: ' + esc(error.message) + '</td></tr>';
+            return;
+        }
+
+        allPersonil = data || [];
+        document.getElementById('totalCount').innerText = allPersonil.length;
+        renderTable();
+    }
+
+    // --- RENDER TABLE (dengan pencarian) ---
+    function renderTable() {
+        const tbody = document.getElementById('personilTableBody');
+        const q = (document.getElementById('searchInput').value || '').toLowerCase();
+
+        const rows = allPersonil.filter(p =>
+            !q ||
+            (p.nik || '').toLowerCase().includes(q) ||
+            (p.nama_lengkap || '').toLowerCase().includes(q) ||
+            (p.jabatan || '').toLowerCase().includes(q) ||
+            (p.role || '').toLowerCase().includes(q)
+        );
+
+        tbody.innerHTML = '';
+
+        if (rows.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">' + (allPersonil.length === 0 ? 'Belum ada data personil.' : 'Data tidak ditemukan.') + '</td></tr>';
+            return;
+        }
+
+        rows.forEach(p => {
+            const isActive = (p.status || 'Aktif') === 'Aktif';
+            const statusBadge = isActive
+                ? '<span class="badge bg-success">Aktif</span>'
+                : '<span class="badge bg-secondary">Nonaktif</span>';
+            tbody.innerHTML += `
+                <tr>
+                    <td class="ps-4">
+                        <div class="fw-bold">${esc(p.nama_lengkap)}</div>
+                        <small class="text-muted">NIK: ${esc(p.nik)}</small>
+                    </td>
+                    <td>${esc(p.jabatan)}</td>
+                    <td><span class="badge bg-primary">${esc(p.role)}</span></td>
+                    <td class="text-center">${statusBadge}</td>
+                    <td class="text-center">
+                        <button class="btn btn-sm btn-outline-primary me-1" title="Edit" onclick="openEditModal('${p.id}')"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm ${isActive ? 'btn-outline-warning' : 'btn-outline-success'} me-1" title="${isActive ? 'Nonaktifkan' : 'Aktifkan'}" onclick="toggleStatus('${p.id}', '${esc(p.status || 'Aktif')}')">
+                            <i class="bi ${isActive ? 'bi-pause-fill' : 'bi-play-fill'}"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" title="Hapus" onclick="deletePersonil('${p.id}', '${esc(p.nama_lengkap)}')"><i class="bi bi-trash"></i></button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    // --- TAMBAH (BUKA MODAL KOSONG) ---
+    function openAddModal() {
+        editId = null;
+        document.getElementById('modalTitle').innerText = 'Tambah Personil';
+        document.getElementById('personilForm').reset();
+        document.getElementById('loginFields').classList.remove('d-none');
+        new bootstrap.Modal(document.getElementById('modalPersonil')).show();
+    }
+
+    // --- EDIT (BUKA MODAL TERISI) ---
+    function openEditModal(id) {
+        const p = allPersonil.find(x => x.id === id);
+        if (!p) return;
+        editId = id;
+        document.getElementById('modalTitle').innerText = 'Edit Personil';
+        document.getElementById('inputNik').value = p.nik || '';
+        document.getElementById('inputNama').value = p.nama_lengkap || '';
+        document.getElementById('inputJabatan').value = p.jabatan || '';
+        document.getElementById('inputRole').value = p.role || '';
+        document.getElementById('inputUsername').value = '';
+        document.getElementById('inputPassword').value = '';
+        document.getElementById('loginFields').classList.add('d-none');
+        new bootstrap.Modal(document.getElementById('modalPersonil')).show();
+    }
+    // --- SIMPAN (INSERT / UPDATE) ---
+    async function savePersonil() {
+        const nik = document.getElementById('inputNik').value.trim();
+        const nama = document.getElementById('inputNama').value.trim();
+        const jabatan = document.getElementById('inputJabatan').value.trim();
+        const role = document.getElementById('inputRole').value;
+
+        if (!nik || !nama || !jabatan || !role) {
+            alert('Lengkapi semua data terlebih dahulu.');
+            return;
+        }
+
+        const payload = { nik, nama_lengkap: nama, jabatan, role };
+
+        const btnLoading = document.getElementById('btnLoading');
+        const btnSave = document.getElementById('btnSave');
+        btnLoading.classList.remove('d-none');
+        btnSave.disabled = true;
+
+        let adminSession = null;
+
+        try {
+            if (editId) {
+                const { error } = await sb.from('personil').update(payload).eq('id', editId);
+                if (error) throw error;
+            } else {
+                const username = document.getElementById('inputUsername').value.trim().toLowerCase();
+                const password = document.getElementById('inputPassword').value;
+
+                if (!username || !password) {
+                    alert('Username dan Password wajib diisi untuk membuat akun login.');
+                    return;
+                }
+                if (password.length < 6) {
+                    alert('Password minimal 6 karakter.');
+                    return;
+                }
+
+                // Cek NIK duplikat sebelum membuat akun
+                const { data: existingNik } = await sb.from('personil').select('id').eq('nik', nik).limit(1);
+                if (existingNik && existingNik.length > 0) {
+                    alert('NIK sudah terdaftar.');
+                    return;
+                }
+
+                const email = username + '@amcpku.com';
+
+                // Simpan sesi admin saat ini (signUp akan menimpa sesi client)
+                const { data: { session } } = await sb.auth.getSession();
+                adminSession = session;
+
+                // 1) Buat akun login di Supabase Auth
+                const { data: authData, error: signUpError } = await sb.auth.signUp({ email, password });
+                if (signUpError) throw signUpError;
+                if (!authData || !authData.user) {
+                    throw new Error('Akun login gagal dibuat (mungkin perlu konfirmasi email di Supabase).');
+                }
+
+                // 2) Simpan ke tabel profiles (agar nama & unit tampil di sidebar + RBAC berjalan)
+                const { error: profileError } = await sb.from('profiles').insert([
+                    { id: authData.user.id, username: username, full_name: nama, unit: role }
+                ]);
+                if (profileError) throw profileError;
+
+                // 3) Simpan ke tabel personil (sertakan user_id agar bisa dihapus bersih bersama akunnya)
+                const insertPayload = { ...payload, user_id: authData.user.id };
+                let personilError = null;
+                ({ error: personilError } = await sb.from('personil').insert([insertPayload]));
+                // Jika kolom user_id belum tersedia, coba lagi tanpa user_id
+                if (personilError && personilError.message && /user_id|column|schema cache/i.test(personilError.message)) {
+                    ({ error: personilError } = await sb.from('personil').insert([payload]));
+                }
+                if (personilError) throw personilError;
+            }
+        } catch (err) {
+            alert('Gagal menyimpan: ' + (err && err.message ? err.message : err));
+            return;
+        } finally {
+            btnLoading.classList.add('d-none');
+            btnSave.disabled = false;
+
+            // Kembalikan sesi admin agar admin tetap login (signUp menimpa sesi client)
+            if (adminSession) {
+                try {
+                    await sb.auth.setSession({
+                        access_token: adminSession.access_token,
+                        refresh_token: adminSession.refresh_token
+                    });
+                } catch (e) {
+                    console.error('Gagal mengembalikan sesi admin:', e);
+                }
+            }
+        }
+
+        bootstrap.Modal.getInstance(document.getElementById('modalPersonil')).hide();
+        loadPersonil();
+    }
+
+    // --- AKTIFKAN / NONAKTIFKAN ---
+    async function toggleStatus(id, currentStatus) {
+        const newStatus = currentStatus === 'Aktif' ? 'Nonaktif' : 'Aktif';
+        const { error } = await sb.from('personil').update({ status: newStatus }).eq('id', id);
+        if (error) alert('Gagal mengubah status: ' + error.message);
+        else loadPersonil();
+    }
+
+    // --- HAPUS ---
+    async function deletePersonil(id, nama) {
+        if (!confirm('Hapus personil "' + nama + '"? Tindakan ini permanen.')) return;
+
+        try {
+            // Hapus baris personil, lalu ambil baris yang benar-benar terhapus
+            const { data: deleted, error } = await sb
+                .from('personil')
+                .delete()
+                .eq('id', id)
+                .select();
+
+            if (error) {
+                if (error.message && /has no field "user_id"/i.test(error.message)) {
+                    alert('Gagal menghapus: kolom "user_id" belum ada di tabel personil.\n\nJalankan SQL berikut di Supabase (SQL Editor), lalu coba hapus lagi:\n\nalter table public.personil add column if not exists user_id uuid;\n\n(Pastikan juga fungsi trigger handle_personil_delete sudah memakai to_jsonb — lihat SETUP-MASTER-PERSONIL.md.)');
+                } else {
+                    alert('Gagal menghapus: ' + error.message);
+                }
+                return;
+            }
+
+            if (!deleted || deleted.length === 0) {
+                alert('Data TIDAK terhapus.\n\nKemungkinan tabel "personil" belum memiliki policy RLS untuk DELETE.\nJalankan SQL ini di Supabase (SQL Editor):\n\ncreate policy "Allow authenticated delete"\n  on public.personil for delete\n  to authenticated using (true);');
+                return;
+            }
+
+            // Bersihkan baris profiles terkait agar akun tidak menjadi data yatim.
+            // (Penghapusan user di Supabase Auth ditangani oleh TRIGGER database — lihat SQL di bawah.)
+            const deletedRow = deleted[0] || {};
+            const namaLengkap = deletedRow.nama_lengkap || nama;
+            if (deletedRow.user_id) {
+                await sb.from('profiles').delete().eq('id', deletedRow.user_id);
+            } else {
+                await sb.from('profiles').delete().eq('full_name', namaLengkap);
+            }
+
+            alert('Data berhasil dihapus.');
+            loadPersonil();
+        } catch (err) {
+            alert('Terjadi kesalahan saat menghapus: ' + (err && err.message ? err.message : err));
+        }
+    }
+
+    // --- LOGOUT disediakan oleh assets/logic.js (window.logout) ---
+
+    // --- SIDEBAR (DINAMIS, KONSEP LAYOUT SAMA) ---
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        if (!sidebar) return;
+        sidebar.classList.toggle('collapsed');
+        updateSidebarToggleIcon();
+    }
+
+    function initSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        if (!sidebar) return;
+        let state = 'collapsed';
+        try {
+            const saved = localStorage.getItem('amcSidebarState');
+            if (saved === 'expanded' || saved === 'collapsed') state = saved;
+        } catch (e) {}
+        sidebar.classList.toggle('collapsed', state === 'collapsed');
+        updateSidebarToggleIcon();
+    }
+
+    function updateSidebarToggleIcon() {
+        const sidebar = document.getElementById('sidebar');
+        const icon = document.querySelector('.sidebar-toggle-btn i');
+        if (!sidebar || !icon) return;
+        const collapsed = sidebar.classList.contains('collapsed');
+        icon.className = collapsed ? 'bi bi-chevron-double-right' : 'bi bi-chevron-double-left';
+        try {
+            localStorage.setItem('amcSidebarState', collapsed ? 'collapsed' : 'expanded');
+        } catch (e) {}
+    }
+
+    function setActiveMenu(element) {
+        document.querySelectorAll('#sidebar ul li a').forEach(function(link) {
+            link.classList.remove('active');
+        });
+        element.classList.add('active');
+    }
+
+    // ==========================================
+    // PROFILE HEADER & LOGOUT ditangani oleh assets/logic.js
+    // ==========================================
+
+    // --- INIT ---
+    document.addEventListener('DOMContentLoaded', function() {
+        initSidebar();
+        loadPersonil();
+    });
+</script>
+</body>
+</html>

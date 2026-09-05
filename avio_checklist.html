@@ -4,29 +4,30 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aviobridge Checklist</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-select@1.14.0-beta3/dist/css/bootstrap-select.min.css">
     
     <!-- Load Supabase library FIRST -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
+    <!-- RBAC, profil, logout & filter menu sidebar (shared) -->
+    <script src="assets/logic.js"></script>
+    
     <!-- Initialize Supabase client immediately and expose to window -->
     <script>
-        // Konfigurasi Supabase
-        const SUPABASE_URL = 'https://voqvauapafsdcmuswsnq.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ' +
-            'SIsInJlZiI6InZvcXZhdWFwYWZzZGNtdXN3c25xIiwicm9sZSI6ImFub24iLCJpYXQiOjE' +
-            '3NjYxNDMxNTYsImV4cCI6MjA4MTcxOTE1Nn0.IJG7ofqfc4Qy44KlbTDGzo4OoQwO0xTXU' +
-            'wKPt04kRnI';
-
-        // Create and expose supabaseClient to window scope IMMEDIATELY
-        // This ensures logic.js logout function can access it
-        if (typeof window.supabase !== 'undefined') {
-            const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            window.supabaseClient = supabaseClient;
+        // CATATAN: SUPABASE_URL & SUPABASE_KEY sudah dideklarasikan global di assets/logic.js.
+        // JANGAN mendeklarasikan ulang const SUPABASE_URL / SUPABASE_KEY di sini (redeclare = SyntaxError).
+        if (typeof window.supabase !== 'undefined' && !window.supabaseClient) {
+            window.supabaseClient = window.supabase.createClient(
+                'https://voqvauapafsdcmuswsnq.supabase.co',
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvcXZhdWFwYWZzZGNtdXN3c25xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNDMxNTYsImV4cCI6MjA4MTcxOTE1Nn0.IJG7ofqfc4Qy44KlbTDGzo4OoQwO0xTXUwKPt04kRnI'
+            );
             console.log('Supabase client initialized and exposed to window');
-        } else {
+        } else if (typeof window.supabase === 'undefined') {
             console.error('Supabase library not loaded!');
         }
     </script>
@@ -50,7 +51,7 @@
             loadData();
         }
 
-        function showForm() {
+        async function showForm() {
             document.getElementById('checklistForm').reset();
             document.getElementById('homePage').classList.add('hidden');
             document.getElementById('formPage').classList.remove('hidden');
@@ -62,6 +63,11 @@
             document.getElementById('inTime').value = now.toTimeString().slice(0, 5);
 
             renderChecklistItems();
+
+            // Isi ulang nama operator sesuai user login (form sudah direset di atas)
+            if (typeof autoFillOfficer === 'function') {
+                await autoFillOfficer();
+            }
         }
 
         function toggleChecklist(isServiceable) {
@@ -173,21 +179,44 @@
             element.classList.add('active');
         }
 
-        // Fungsi untuk toggle sidebar
+        // Fungsi untuk toggle sidebar (DINAMIS)
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
-            const wrapper = document.querySelector('.wrapper');
-            
-            if (sidebar && wrapper) {
-                sidebar.classList.toggle('active');
-                wrapper.classList.toggle('sidebar-hidden');
-                console.log('Sidebar toggled via onclick, active:', sidebar.classList.contains('active'));
-            } else {
-                console.error('Sidebar or wrapper not found');
-            }
+            if (!sidebar) return;
+            sidebar.classList.toggle('collapsed');
+            updateSidebarToggleIcon();
         }
+
+        function initSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            if (!sidebar) return;
+            // Default: sidebar tertutup (hanya menampilkan ikon) saat pertama kali
+            let state = 'collapsed';
+            try {
+                const saved = localStorage.getItem('amcSidebarState');
+                if (saved === 'expanded' || saved === 'collapsed') state = saved;
+            } catch (e) {}
+            sidebar.classList.toggle('collapsed', state === 'collapsed');
+            updateSidebarToggleIcon();
+        }
+
+        function updateSidebarToggleIcon() {
+            const sidebar = document.getElementById('sidebar');
+            const icon = document.querySelector('.sidebar-toggle-btn i');
+            if (!sidebar || !icon) return;
+            const collapsed = sidebar.classList.contains('collapsed');
+            icon.className = collapsed ? 'bi bi-chevron-double-right' : 'bi bi-chevron-double-left';
+            try {
+                localStorage.setItem('amcSidebarState', collapsed ? 'collapsed' : 'expanded');
+            } catch (e) {}
+        }
+
+        window.toggleSidebar = toggleSidebar;
+        window.initSidebar = initSidebar;
+        window.updateSidebarToggleIcon = updateSidebarToggleIcon;
     </script>
     <style>
+        body { font-family: 'Poppins', sans-serif; }
         .hidden { display: none; }
         .form-check-input { cursor: pointer; border: 1px solid #0d6efd; }
         
@@ -196,93 +225,175 @@
             position: fixed;
             top: 0;
             left: 0;
-            min-width: 250px;
-            max-width: 250px;
+            display: flex;
+            flex-direction: column;
+            width: 250px;
+            height: 100vh;
             background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%);
             color: #fff;
-            transition: left 0.3s ease, transform 0.3s ease;
-            min-height: 100vh;
+            transition: width 0.3s ease;
             box-shadow: 2px 0 5px rgba(0,0,0,0.1);
             z-index: 1000;
-            transform: translateX(0);
+            overflow-x: hidden;
+            white-space: nowrap;
         }
 
-        #sidebar.active {
-            left: -250px !important;
-            transform: translateX(-250px) !important;
+        #sidebar.collapsed {
+            width: 70px;
         }
 
         #sidebar .sidebar-header {
-            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 15px;
             background: rgba(0,0,0,0.2);
+            min-height: 64px;
+        }
+
+        #sidebar.collapsed .sidebar-header {
+            justify-content: center;
+            padding: 15px 0;
+        }
+
+        #sidebar .brand h3 {
+            margin: 0;
+            font-size: 1.15rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        #sidebar .brand p {
+            margin: 0;
+            font-size: .72rem;
+            color: rgba(255,255,255,0.75);
+            white-space: nowrap;
+        }
+
+        #sidebar.collapsed .brand {
+            display: none;
+        }
+
+        .sidebar-toggle-btn {
+            background: rgba(255,255,255,0.15);
+            border: none;
+            color: #fff;
+            width: 34px;
+            height: 34px;
+            flex-shrink: 0;
+            border-radius: 5px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.05rem;
+            transition: background 0.2s;
+        }
+
+        .sidebar-toggle-btn:hover {
+            background: rgba(255,255,255,0.3);
         }
 
         #sidebar ul.components {
-            padding: 20px 0;
-        }
-
-        #sidebar ul li {
-            padding: 10px;
-            font-size: 1.1em;
-            display: block;
+            flex: 1 1 auto;
+            padding: 10px 0;
+            margin: 0;
+            list-style: none;
         }
 
         #sidebar ul li a {
-            padding: 10px 15px;
-            font-size: 1em;
-            display: block;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 16px;
+            margin: 2px 8px;
+            font-size: .95rem;
             color: rgba(255,255,255,0.8);
             text-decoration: none;
             transition: all 0.3s;
-            border-radius: 5px;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+
+        #sidebar ul li a i {
+            font-size: 1.25rem;
+            min-width: 30px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        #sidebar.collapsed ul li a {
+            justify-content: center;
+            padding: 11px 0;
+            margin: 2px 10px;
         }
 
         #sidebar ul li a:hover,
         #sidebar ul li a.active {
             color: #fff;
-            background: rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.12);
         }
 
-        #sidebar ul li a i {
-            margin-right: 10px;
+        .nav-text {
+            transition: opacity 0.25s ease;
+            white-space: nowrap;
+        }
+
+        #sidebar.collapsed .nav-text {
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
         }
 
         #content {
-            margin-left: 250px;
-            width: calc(100% - 250px);
+            margin-left: 70px;
             padding: 20px;
             min-height: 100vh;
-            transition: margin-left 0.3s ease, width 0.3s ease;
+            transition: margin-left 0.3s ease;
         }
 
-        #sidebar.active ~ #content {
-            margin-left: 0 !important;
-            width: 100% !important;
+        #sidebar:not(.collapsed) ~ #content {
+            margin-left: 250px;
         }
 
         .wrapper {
             width: 100%;
             position: relative;
         }
-        
-        #sidebarCollapse {
-            background: #1e3c72;
-            color: #fff;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-        
-        #sidebarCollapse:hover {
-            background: #2a5298;
-        }
                
         /* Styling Form */
         .card { border: none; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
         .form-check-input { cursor: pointer; }
         .img-preview { width: 60px; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid #dee2e6; margin-top: 5px; }
+
+        /* ==========================================
+           FLOATING ACTION BUTTON (TAMBAH CHECKLIST) — MOBILE ONLY
+        ========================================== */
+        .fab-add-checklist {
+            display: none;
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            z-index: 1500;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            font-weight: 600;
+            font-size: .95rem;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: transform .15s ease, box-shadow .15s ease;
+        }
+        .fab-add-checklist i { font-size: 1.1rem; }
+        .fab-add-checklist:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,0.35); }
+        @media (max-width: 767.98px) {
+            .fab-add-checklist { display: inline-flex; }
+        }
 
         /* Styling Cetak */
         @media print {
@@ -293,72 +404,181 @@
             table { width: 100%; border-collapse: collapse; }
             th, td { border: 1px solid black; padding: 5px; font-size: 12px; }
         }
+        /* ==========================================
+           PROFILE HEADER (SIDEBAR)
+        ========================================== */
+        .sidebar-profile {
+            position: relative;
+            margin-top: auto;
+            border-top: 1px solid rgba(255,255,255,0.15);
+        }
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .profile-header:hover { background: rgba(255,255,255,0.08); }
+        .profile-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            background: rgba(255,255,255,0.2);
+            border: 2px solid rgba(255,255,255,0.4);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1.05rem;
+            color: #fff;
+            overflow: hidden;
+        }
+        .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .profile-info { flex: 1; min-width: 0; }
+        .profile-name {
+            font-size: .95rem;
+            font-weight: 600;
+            color: #fff;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .profile-role {
+            font-size: .72rem;
+            color: rgba(255,255,255,0.7);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .profile-caret { color: rgba(255,255,255,0.7); font-size: .8rem; flex-shrink: 0; }
+
+        #sidebar.collapsed .profile-header { justify-content: center; padding: 12px 0; }
+        #sidebar.collapsed .profile-info,
+        #sidebar.collapsed .profile-caret { display: none; }
+
+        .profile-menu {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            list-style: none;
+            padding: 6px 0;
+            margin: 0;
+            width: 200px;
+        }
+        .profile-menu.show { display: block; }
+        #sidebar .profile-menu li a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 14px;
+            margin: 0;
+            color: #333;
+            font-size: .85rem;
+            text-decoration: none;
+            transition: background 0.15s;
+            border-radius: 0;
+        }
+        #sidebar .profile-menu li a:hover { background: #f0f3f8; color: #333; }
+        #sidebar .profile-menu li a i { font-size: 1rem; min-width: 18px; color: #1e3c72; }
+
+        .sidebar-footer { padding: 0 14px 12px; }
+        .sidebar-footer small { font-size: .68rem; }
+        #sidebar.collapsed .sidebar-footer { display: none; }
     </style>
 </head>
 <body class="bg-light">
 
 <div class="wrapper">
     <!-- Sidebar -->
-    <nav id="sidebar">
+    <nav id="sidebar" class="collapsed">
         <div class="sidebar-header">
-            <h3><i class="bi bi-airplane-fill"></i> AMC</h3>
-            <p class="mb-0">Sultan Syarif Kasim II</p>
+            <div class="brand">
+                <h3><i class="bi bi-airplane-fill"></i> AMC</h3>
+                <p>Sultan Syarif Kasim II</p>
+            </div>
+            <button type="button" class="sidebar-toggle-btn" onclick="toggleSidebar()" aria-label="Buka/Tutup menu" title="Buka/Tutup menu">
+                <i class="bi bi-chevron-double-right"></i>
+            </button>
         </div>
 
         <ul class="list-unstyled components">
             <li>
                 <a href="dashboard.html">
-                    <i class="bi bi-house"></i> Dashboard
+                    <i class="bi bi-house"></i> <span class="nav-text">Dashboard</span>
                 </a>
             </li>
             <li>
                 <a href="checklist.html">
-                    <i class="bi bi-card-checklist"></i> Checklist
+                    <i class="bi bi-card-checklist"></i> <span class="nav-text">Checklist</span>
                 </a>
             </li>
             <li>
                 <a href="logbook.html">
-                    <i class="bi bi-journal-check"></i> Logbook
+                    <i class="bi bi-journal-check"></i> <span class="nav-text">Logbook</span>
                 </a>
             </li>
             <li>
                 <a href="admintim.html">
-                    <i class="bi bi-display"></i> Admin TIM
+                    <i class="bi bi-display"></i> <span class="nav-text">Admin TIM</span>
                 </a>
             </li>
             <li>
                 <a href="avio_logbook.html">
-                    <i class="bi bi-journal-plus"></i> Avio Logbook
+                    <i class="bi bi-journal-plus"></i> <span class="nav-text">Avio Logbook</span>
                 </a>
             </li>
             <li>
                 <a href="#" onclick="showHome(); setActiveMenu(this); return false;" class="active">
-                    <i class="bi bi-person-check"></i> Avio Checklist
+                    <i class="bi bi-person-check"></i> <span class="nav-text">Avio Checklist</span>
+                </a>
+            </li>
+            <li>
+                <a href="master-personil.html">
+                    <i class="bi bi-person-fill-gear"></i> <span class="nav-text">Master Personil</span>
                 </a>
             </li>
              <li>
                 <a href="#" onclick="logout(); return false;">
-                    <i class="bi bi-box-arrow-right"></i> Logout
+                    <i class="bi bi-box-arrow-right"></i> <span class="nav-text">Logout</span>
                 </a>
             </li>
         </ul>
 
-        <div class="px-3 mt-auto pb-3">
-            <small class="text-white-50">Apron Movement Control PKU v1.1</small>
+        <div class="sidebar-profile">
+            <div class="profile-header" onclick="toggleProfileMenu(event)">
+                <div class="profile-avatar" id="profileAvatar">U</div>
+                <div class="profile-info">
+                    <div class="profile-name" id="profileName">Memuat...</div>
+                    <div class="profile-role" id="profileRole">Role</div>
+                </div>
+                <i class="bi bi-chevron-up profile-caret"></i>
+            </div>
+            <ul class="profile-menu" id="profileMenu">
+                <li><a href="#" onclick="openMyProfile(); return false;"><i class="bi bi-person"></i> My Profile</a></li>
+                <li><a href="#" onclick="openChangePassword(); return false;"><i class="bi bi-key"></i> Change Password</a></li>
+            </ul>
+        </div>
+        <div class="sidebar-footer">
+            <small class="text-white-50">Apron Movement Control PKU</small>
         </div>
     </nav>
 
     <!-- Page Content -->
     <div id="content">
-        <button type="button" id="sidebarCollapse" class="btn mb-3" onclick="toggleSidebar()">
-            <i class="bi bi-list"></i> Menu
-        </button>
+        
 
     <div id="homePage">
 
     <div class="d-flex justify-content-between align-items-center mb-4 no-print">
         <h3 class="text-primary"><i class="bi bi-airplane-engines-fill"></i> Aviobridge Checklist</h3>
-            <button class="btn btn-primary shadow-sm" onclick="showForm()">
+            <button class="btn btn-primary shadow-sm d-none d-md-inline-flex align-items-center gap-1" onclick="showForm()">
                 <i class="bi bi-plus-lg"></i> Tambah Checklist
             </button>
         </div>
@@ -506,27 +726,33 @@
 </div>
 <!-- End .wrapper -->
 
+<!-- Floating Action Button (mobile only) untuk Tambah Checklist -->
+<button type="button" class="fab-add-checklist" onclick="showForm()" aria-label="Tambah Checklist">
+    <i class="bi bi-plus-lg"></i> Tambah Checklist
+</button>
+
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap-select@1.14.0-beta3/dist/js/bootstrap-select.min.js"></script>
 
 <script>
+    const supabaseClient = window.supabaseClient;
     let allChecklistData = [];
     let currentPage = 1;
     let rowsPerPage = 10;
     const pageWindowSize = 5;
+    let currentUserName = ''; // nama operator dari user yang login
+    let currentUnit = '';      // unit/role user yang login
 
     function sortChecklistNewestFirst(data) {
         if (!Array.isArray(data)) return [];
         return [...data].sort((a, b) => {
-            const aUpdated = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-            const bUpdated = b.updated_at ? new Date(b.updated_at).getTime() : 0;
-            if (bUpdated !== aUpdated) return bUpdated - aUpdated;
+            // Urutkan berdasarkan Tanggal & Waktu submit terbaru (kolom pertama tabel)
+            const aTime = new Date(`${a.tanggal || ''}T${a.waktu || '00:00'}`).getTime() || 0;
+            const bTime = new Date(`${b.tanggal || ''}T${b.waktu || '00:00'}`).getTime() || 0;
+            if (bTime !== aTime) return bTime - aTime;
 
-            const aCreated = a.created_at ? new Date(a.created_at).getTime() : 0;
-            const bCreated = b.created_at ? new Date(b.created_at).getTime() : 0;
-            if (bCreated !== aCreated) return bCreated - aCreated;
-
+            // Tiebreaker: id terbesar (baris yang disimpan paling akhir)
             return (b.id || 0) - (a.id || 0);
         });
     }
@@ -583,7 +809,9 @@
         const { data, error } = await supabaseClient
             .from('aviobridge_checklist')
             .select('*')
-            .order('created_at', { ascending: false });
+            .order('tanggal', { ascending: false })
+            .order('waktu', { ascending: false })
+            .order('id', { ascending: false });
 
         if (error) {
             tbody.innerHTML = `<tr><td colspan="4" class="text-danger text-center">${error.message}</td></tr>`;
@@ -596,6 +824,13 @@
 
         renderTablePage();
         renderPaginationControls();
+    }
+
+    // --- PERIKSA HAK HAPUS (khusus role Avio: hanya operator terkait) ---
+    function canModify(item) {
+        if (currentUnit === 'Admin' || currentUnit === 'AMC') return true;
+        if (!currentUserName) return false;
+        return (item.operator_name || '').trim().toLowerCase() === currentUserName.trim().toLowerCase();
     }
 
     function renderTablePage() {
@@ -613,6 +848,7 @@
 
         pageData.forEach(row => {
             const badgeClass = row.kondisi_utama === 'Serviceable' ? 'bg-success' : 'bg-danger';
+            const canMod = canModify(row);
             tbody.innerHTML += `
                 <tr>
                     <td class="ps-4 fw-bold">${row.tanggal}<br><small class="text-muted fw-normal">${row.waktu}</small></td>
@@ -623,7 +859,9 @@
                     <td><span class="badge ${badgeClass}">${row.kondisi_utama}</span></td>
                     <td class="text-center">
                         <button class="btn btn-sm btn-info text-white me-1" onclick="viewDetail(${row.id})"><i class="bi bi-eye"></i></button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deleteData(${row.id})"><i class="bi bi-trash"></i></button>
+                        ${canMod
+                            ? `<button class="btn btn-sm btn-outline-danger" onclick="deleteData(${row.id})"><i class="bi bi-trash"></i></button>`
+                            : `<button class="btn btn-sm btn-outline-danger" title="Hanya operator terkait" disabled><i class="bi bi-trash"></i></button>`}
                     </td>
                 </tr>
             `;
@@ -825,6 +1063,38 @@
         }
     }
 
+    // AUTO-FILL NAMA OPERATOR SESUAI USER LOGIN
+    async function autoFillOfficer() {
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) return;
+
+            const { data: profile } = await supabaseClient
+                .from('profiles')
+                .select('full_name, unit')
+                .eq('id', session.user.id)
+                .single();
+
+            const fullName = (profile && profile.full_name) || (session.user.email ? session.user.email.split('@')[0] : '');
+            if (!fullName) return;
+            currentUserName = fullName;
+            currentUnit = (profile && profile.unit) || '';
+
+            const select = document.getElementById('inOfficer');
+            if (!select) return;
+
+            if (!Array.from(select.options).some(opt => opt.value === fullName)) {
+                const opt = document.createElement('option');
+                opt.value = fullName;
+                opt.text = fullName;
+                select.add(opt);
+            }
+            select.value = fullName;
+        } catch (e) {
+            console.error('autoFillOfficer error:', e);
+        }
+    }
+
     // TAMBAH OPERATOR BARU
     async function tambahOperator() {
         const val = prompt('Masukkan Nama Operator baru:');
@@ -844,10 +1114,16 @@
         }
     }
 
+    // ==========================================
+    // PROFILE HEADER & LOGOUT ditangani oleh assets/logic.js
+    // ==========================================
+
     // Initialize on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        // Load operator dropdown
-        loadOperatorDropdown();
+    document.addEventListener('DOMContentLoaded', async function() {
+        initSidebar();
+        // Load operator dropdown (lalu auto-pilih operator = user yang login)
+        await loadOperatorDropdown();
+        await autoFillOfficer();
         // Load initial data
         showHome();
         console.log('Page initialized - sidebar toggle uses onclick handler');

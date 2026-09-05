@@ -43,6 +43,17 @@ function getAccessPages(unit) {
     return found ? ACCESS_RULES[found] : [];
 }
 
+// Normalisasi nama halaman agar tahan terhadap pretty URLs (Cloudflare/hosting)
+// yang menghilangkan ekstensi .html, serta query string / hash.
+function normalizePageName(name) {
+    if (!name) return '';
+    return String(name)
+        .split(/[?#]/)[0]       // buang query string & hash
+        .split('/').pop()       // ambil nama file terakhir
+        .replace(/\.html$/i, '') // buang ekstensi .html
+        .toLowerCase();
+}
+
 function applySidebarFilter(unit) {
     // Admin bebas melihat semua menu
     if (isAdminUnit(unit)) return;
@@ -63,11 +74,11 @@ function applySidebarFilter(unit) {
 async function checkAccess() {
     try {
         const { data: { session } } = await window.supabaseClient.auth.getSession();
-        const currentPage = window.location.pathname.split("/").pop() || 'index.html';
+        const currentPage = normalizePageName(window.location.pathname) || 'index';
 
         // 1. Jika tidak ada session, paksa ke login (kecuali sudah di login/register)
         if (!session) {
-            if (currentPage !== 'index.html' && currentPage !== 'register.html') {
+            if (currentPage !== 'index' && currentPage !== 'register') {
                 window.location.href = 'index.html';
             }
             return;
@@ -129,7 +140,9 @@ async function checkAccess() {
         if (isAdminUnit(unit)) return;
 
         // Jika halaman saat ini tidak diizinkan, pindahkan ke dashboard
-        if (!PUBLIC_PAGES.includes(currentPage) && !getAccessPages(unit).includes(currentPage)) {
+        const allowedPages = PUBLIC_PAGES.map(normalizePageName);
+        const rolePages = getAccessPages(unit).map(normalizePageName);
+        if (!allowedPages.includes(currentPage) && !rolePages.includes(currentPage)) {
             alert(`Unit ${unit} tidak memiliki izin akses ke halaman ini.`);
             window.location.href = 'dashboard.html';
         }

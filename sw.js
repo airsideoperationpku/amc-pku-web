@@ -1,13 +1,13 @@
-const CACHE_NAME = 'airport-pku v1'; // Ganti versi agar browser mereset cache lama
+const CACHE_NAME = 'airport-pku-v2'; // Ganti versi agar browser mereset cache lama
 const urlsToCache = [
   './',
   './index.html',
   './dashboard.html', // WAJIB ADA: Karena user akan pindah kesini
   './manifest.json',
-  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css',
+  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css',
   'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css',
   'https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css',
-  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js',
+  'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js',
   'https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js',
   'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
 ];

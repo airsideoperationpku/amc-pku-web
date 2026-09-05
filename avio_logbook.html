@@ -4,7 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Logbook Aviobridge</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-select@1.14.0-beta3/dist/css/bootstrap-select.min.css">
     
@@ -13,20 +16,17 @@
     
     <!-- Initialize Supabase client immediately and expose to window -->
     <script>
-        // Konfigurasi Supabase
-        const SUPABASE_URL = 'https://voqvauapafsdcmuswsnq.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ' +
-            'SIsInJlZiI6InZvcXZhdWFwYWZzZGNtdXN3c25xIiwicm9sZSI6ImFub24iLCJpYXQiOjE' +
-            '3NjYxNDMxNTYsImV4cCI6MjA4MTcxOTE1Nn0.IJG7ofqfc4Qy44KlbTDGzo4OoQwO0xTXU' +
-            'wKPt04kRnI';
-
-        // Create and expose supabaseClient to window scope IMMEDIATELY
-        // This ensures logic.js logout function can access it
-        if (typeof window.supabase !== 'undefined') {
-            const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-            window.supabaseClient = supabaseClient;
+        // CATATAN: SUPABASE_URL & SUPABASE_KEY sudah dideklarasikan global di assets/logic.js.
+        // JANGAN mendeklarasikan ulang const SUPABASE_URL / SUPABASE_KEY di sini — redeclare
+        // memicu SyntaxError "Identifier has already been declared" yang mematikan seluruh
+        // assets/logic.js, sehingga profil/akun (loadUserProfile) tidak pernah muncul.
+        if (typeof window.supabase !== 'undefined' && !window.supabaseClient) {
+            window.supabaseClient = window.supabase.createClient(
+                'https://voqvauapafsdcmuswsnq.supabase.co',
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvcXZhdWFwYWZzZGNtdXN3c25xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNDMxNTYsImV4cCI6MjA4MTcxOTE1Nn0.IJG7ofqfc4Qy44KlbTDGzo4OoQwO0xTXUwKPt04kRnI'
+            );
             console.log('Supabase client initialized and exposed to window');
-        } else {
+        } else if (typeof window.supabase === 'undefined') {
             console.error('Supabase library not loaded!');
         }
     </script>
@@ -62,6 +62,7 @@
         }
     </script>
     <style>
+        body { font-family: 'Poppins', sans-serif; }
         .hidden { display: none; }
         .form-check-input { cursor: pointer; border: 1px solid #0d6efd; }
         
@@ -70,68 +71,136 @@
             position: fixed;
             top: 0;
             left: 0;
-            min-width: 250px;
-            max-width: 250px;
+            display: flex;
+            flex-direction: column;
+            width: 250px;
+            height: 100vh;
             background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%);
             color: #fff;
-            transition: left 0.3s ease, transform 0.3s ease;
-            min-height: 100vh;
+            transition: width 0.3s ease;
             box-shadow: 2px 0 5px rgba(0,0,0,0.1);
             z-index: 1000;
-            transform: translateX(0);
+            overflow-x: hidden;
+            white-space: nowrap;
         }
 
-        #sidebar.active {
-            left: -250px !important;
-            transform: translateX(-250px) !important;
+        #sidebar.collapsed {
+            width: 70px;
         }
 
         #sidebar .sidebar-header {
-            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 15px;
             background: rgba(0,0,0,0.2);
+            min-height: 64px;
+        }
+
+        #sidebar.collapsed .sidebar-header {
+            justify-content: center;
+            padding: 15px 0;
+        }
+
+        #sidebar .brand h3 {
+            margin: 0;
+            font-size: 1.15rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        #sidebar .brand p {
+            margin: 0;
+            font-size: .72rem;
+            color: rgba(255,255,255,0.75);
+            white-space: nowrap;
+        }
+
+        #sidebar.collapsed .brand {
+            display: none;
+        }
+
+        .sidebar-toggle-btn {
+            background: rgba(255,255,255,0.15);
+            border: none;
+            color: #fff;
+            width: 34px;
+            height: 34px;
+            flex-shrink: 0;
+            border-radius: 5px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.05rem;
+            transition: background 0.2s;
+        }
+
+        .sidebar-toggle-btn:hover {
+            background: rgba(255,255,255,0.3);
         }
 
         #sidebar ul.components {
-            padding: 20px 0;
-        }
-
-        #sidebar ul li {
-            padding: 10px;
-            font-size: 1.1em;
-            display: block;
+            flex: 1 1 auto;
+            padding: 10px 0;
+            margin: 0;
+            list-style: none;
         }
 
         #sidebar ul li a {
-            padding: 10px 15px;
-            font-size: 1em;
-            display: block;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 11px 16px;
+            margin: 2px 8px;
+            font-size: .95rem;
             color: rgba(255,255,255,0.8);
             text-decoration: none;
             transition: all 0.3s;
-            border-radius: 5px;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+
+        #sidebar ul li a i {
+            font-size: 1.25rem;
+            min-width: 30px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        #sidebar.collapsed ul li a {
+            justify-content: center;
+            padding: 11px 0;
+            margin: 2px 10px;
         }
 
         #sidebar ul li a:hover,
         #sidebar ul li a.active {
             color: #fff;
-            background: rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.12);
         }
 
-        #sidebar ul li a i {
-            margin-right: 10px;
+        .nav-text {
+            transition: opacity 0.25s ease;
+            white-space: nowrap;
+        }
+
+        #sidebar.collapsed .nav-text {
+            opacity: 0;
+            width: 0;
+            overflow: hidden;
         }
 
         #content {
-            margin-left: 250px;
-            width: calc(100% - 250px);
+            margin-left: 70px;
             padding: 20px;
             min-height: 100vh;
-            transition: margin-left 0.3s ease, width 0.3s ease;
+            transition: margin-left 0.3s ease;
         }
 
-        #sidebar.active ~ #content {
-            margin-left: 0 !important;
-            width: 100% !important;
+        #sidebar:not(.collapsed) ~ #content {
+            margin-left: 250px;
         }
 
         .wrapper {
@@ -139,133 +208,236 @@
             position: relative;
         }
         
-        #sidebarCollapse {
-            background: #1e3c72;
-            color: #fff;
-            border: none;
-            padding: 10px 15px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
         
-        #sidebarCollapse:hover {
-            background: #2a5298;
-        }
-        
-        
-        /* Print Header - Only visible when printing */
-        .print-header {
+        /* Print Area - hanya tampil saat cetak laporan */
+        #printArea {
             display: none;
         }
         
-        /* CSS Khusus Cetak */
+        /* CSS Khusus Cetak Laporan */
         @media print {
-            /* Hide sidebar and unnecessary elements */
-            #sidebar,
-            .no-print, 
-            .btn, 
-            .modal,
-            #sidebarCollapse,
-            .card-header {
+            @page {
+                size: A4;
+                margin: 10mm;
+            }
+
+            /* Sembunyikan seluruh halaman aplikasi */
+            .wrapper {
                 display: none !important;
             }
-            
-            /* Show print header */
-            .print-header {
-                display: block !important;
-                text-align: center;
-                margin-bottom: 20px;
-                padding-bottom: 15px;
-                border-bottom: 2px solid #333;
+
+            /* Sembunyikan backdrop modal (ditambahkan bootstrap ke body) */
+            .modal-backdrop {
+                display: none !important;
             }
-            
-            .print-header h2 {
-                margin: 0;
-                font-size: 20px;
-                font-weight: bold;
-                color: #000;
-            }
-            
-            .print-header h3 {
-                margin: 5px 0;
-                font-size: 16px;
-                font-weight: bold;
-                color: #000;
-            }
-            
-            .print-header p {
-                margin: 3px 0;
-                font-size: 12px;
-                color: #333;
-            }
-            
-            /* Adjust content for print */
-            #content {
-                margin-left: 0 !important;
-                width: 100% !important;
-                padding: 20px !important;
-            }
-            
-            .card {
-                box-shadow: none;
-                border: none;
-            }
-            
-            .card-body {
-                padding: 0 !important;
-            }
-            
+
             body {
-                background-color: white;
+                background: #fff !important;
             }
-            
-            /* Pastikan tabel tercetak penuh */
-            .table-responsive {
-                overflow: visible !important;
+
+            /* Tampilkan hanya area laporan */
+            #printArea {
+                display: block !important;
             }
-            
-            /* Table styling for print */
-            .table {
+
+            #printArea .report-title {
+                margin: 0;
+                font-size: 18px;
+                font-weight: bold;
+                text-align: center;
+            }
+
+            #printArea .report-subtitle {
+                margin: 2px 0 6px 0;
+                font-size: 14px;
+                font-weight: bold;
+                text-align: center;
+            }
+
+            #printArea .report-info {
+                margin: 2px 0;
                 font-size: 11px;
-                border-collapse: collapse;
+                text-align: center;
+            }
+
+            #printArea table {
                 width: 100%;
+                border-collapse: collapse;
+                font-size: 10px;
+                margin-top: 8px;
             }
-            
-            .table th,
-            .table td {
-                border: 1px solid #000 !important;
-                padding: 5px !important;
+
+            #printArea table th,
+            #printArea table td {
+                border: 1px solid #000;
+                padding: 4px 5px;
+                vertical-align: top;
             }
-            
-            .table thead th {
+
+            #printArea table thead th {
                 background-color: #f0f0f0 !important;
                 font-weight: bold;
                 text-align: center;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
             }
-            
-            /* Page break settings */
-            .table {
-                page-break-inside: auto;
-            }
-            
-            .table tr {
+
+            #printArea table tr {
                 page-break-inside: avoid;
-                page-break-after: auto;
             }
-            
-            /* Print summary info */
-            .print-summary {
-                display: block !important;
-                margin-bottom: 15px;
-                font-size: 12px;
+
+            #printArea img {
+                max-width: 40px;
+                max-height: 40px;
+                object-fit: cover;
+            }
+
+            #printArea .report-meta {
+                display: flex;
+                justify-content: space-between;
+                margin-top: 10px;
+                font-size: 11px;
             }
         }
-        
-        .print-summary {
+        /* ==========================================
+           PROFILE HEADER (SIDEBAR)
+        ========================================== */
+        .sidebar-profile {
+            position: relative;
+            margin-top: auto;
+            border-top: 1px solid rgba(255,255,255,0.15);
+        }
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .profile-header:hover { background: rgba(255,255,255,0.08); }
+        .profile-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            flex-shrink: 0;
+            background: rgba(255,255,255,0.2);
+            border: 2px solid rgba(255,255,255,0.4);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1.05rem;
+            color: #fff;
+            overflow: hidden;
+        }
+        .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .profile-info { flex: 1; min-width: 0; }
+        .profile-name {
+            font-size: .95rem;
+            font-weight: 600;
+            color: #fff;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .profile-role {
+            font-size: .72rem;
+            color: rgba(255,255,255,0.7);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .profile-caret { color: rgba(255,255,255,0.7); font-size: .8rem; flex-shrink: 0; }
+
+        #sidebar.collapsed .profile-header { justify-content: center; padding: 12px 0; }
+        #sidebar.collapsed .profile-info,
+        #sidebar.collapsed .profile-caret { display: none; }
+
+        .profile-menu {
             display: none;
+            position: fixed;
+            z-index: 2000;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            list-style: none;
+            padding: 6px 0;
+            margin: 0;
+            width: 200px;
+        }
+        .profile-menu.show { display: block; }
+        #sidebar .profile-menu li a {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 14px;
+            margin: 0;
+            color: #333;
+            font-size: .85rem;
+            text-decoration: none;
+            transition: background 0.15s;
+            border-radius: 0;
+        }
+        #sidebar .profile-menu li a:hover { background: #f0f3f8; color: #333; }
+        #sidebar .profile-menu li a i { font-size: 1rem; min-width: 18px; color: #1e3c72; }
+
+        .sidebar-footer { padding: 0 14px 12px; }
+        .sidebar-footer small { font-size: .68rem; }
+        #sidebar.collapsed .sidebar-footer { display: none; }
+
+        /* ==========================================
+           TABEL DAFTAR LOG — MODERN (CARD + DARK HEADER + ZEBRA)
+        ========================================== */
+        .table-clean { border-collapse: separate; border-spacing: 0; }
+        .table-clean thead th {
+            background: #1e3c72;
+            color: #fff;
+            font-weight: 600;
+            font-size: .82rem;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+            border: none;
+            padding: 14px 16px;
+            white-space: nowrap;
+        }
+        .table-clean tbody td {
+            padding: 14px 16px;
+            vertical-align: middle;
+            border-bottom: 1px solid #eef1f5;
+        }
+        .table-clean tbody tr:nth-of-type(even) { background-color: #e3f0fd; } /* biru muda */
+        .table-clean tbody tr:nth-of-type(odd) { background-color: #f1f3f5; }   /* abu */
+        .table-clean tbody tr:hover { background-color: #d6e6f8; }
+        .table-clean tbody tr:last-child td { border-bottom: none; }
+
+        /* ==========================================
+           FLOATING ACTION BUTTON (INPUT DATA) — MOBILE ONLY
+        ========================================== */
+        .fab-input-data {
+            display: none;
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            z-index: 1500;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 50px;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #fff;
+            font-weight: 600;
+            font-size: .95rem;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: transform .15s ease, box-shadow .15s ease;
+        }
+        .fab-input-data i { font-size: 1.1rem; }
+        .fab-input-data:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,0.35); }
+        @media (max-width: 767.98px) {
+            .fab-input-data { display: inline-flex; }
         }
     </style>
 </head>
@@ -273,60 +445,82 @@
 
 <div class="wrapper">
         <!-- Sidebar -->
-    <nav id="sidebar">
+    <nav id="sidebar" class="collapsed">
         <div class="sidebar-header">
-            <h3><i class="bi bi-airplane-fill"></i> AMC</h3>
-            <p class="mb-0">Sultan Syarif Kasim II</p>
+            <div class="brand">
+                <h3><i class="bi bi-airplane-fill"></i> AMC</h3>
+                <p>Sultan Syarif Kasim II</p>
+            </div>
+            <button type="button" class="sidebar-toggle-btn" onclick="toggleSidebar()" aria-label="Buka/Tutup menu" title="Buka/Tutup menu">
+                <i class="bi bi-chevron-double-right"></i>
+            </button>
         </div>
 
         <ul class="list-unstyled components">
             <li>
                 <a href="dashboard.html">
-                    <i class="bi bi-house"></i> Dashboard
+                    <i class="bi bi-house"></i> <span class="nav-text">Dashboard</span>
                 </a>
             </li>
             <li>
                 <a href="checklist.html">
-                    <i class="bi bi-card-checklist"></i> Checklist
+                    <i class="bi bi-card-checklist"></i> <span class="nav-text">Checklist</span>
                 </a>
             </li>
             <li>
                 <a href="logbook.html">
-                    <i class="bi bi-journal-check"></i> Logbook
+                    <i class="bi bi-journal-check"></i> <span class="nav-text">Logbook</span>
                 </a>
             </li>
             <li>
                 <a href="admintim.html">
-                    <i class="bi bi-display"></i> Admin TIM
+                    <i class="bi bi-display"></i> <span class="nav-text">Admin TIM</span>
                 </a>
             </li>
             <li>
                 <a href="#" onclick="showHome(); setActiveMenu(this); return false;" class="active">
-                    <i class="bi bi-journal-plus"></i> Avio Logbook
+                    <i class="bi bi-journal-plus"></i> <span class="nav-text">Avio Logbook</span>
                 </a>
             </li>
             <li>
                 <a href="avio_checklist.html">
-                    <i class="bi bi-person-check"></i> Avio Checklist
+                    <i class="bi bi-person-check"></i> <span class="nav-text">Avio Checklist</span>
+                </a>
+            </li>
+            <li>
+                <a href="master-personil.html">
+                    <i class="bi bi-person-fill-gear"></i> <span class="nav-text">Master Personil</span>
                 </a>
             </li>
              <li>
                 <a href="#" onclick="logout(); return false;">
-                    <i class="bi bi-box-arrow-right"></i> Logout
+                    <i class="bi bi-box-arrow-right"></i> <span class="nav-text">Logout</span>
                 </a>
             </li>
         </ul>
 
-        <div class="px-3 mt-auto pb-3">
-            <small class="text-white-50">Apron Movement Control PKU v1.1</small>
+        <div class="sidebar-profile">
+            <div class="profile-header" onclick="toggleProfileMenu(event)">
+                <div class="profile-avatar" id="profileAvatar">U</div>
+                <div class="profile-info">
+                    <div class="profile-name" id="profileName">Memuat...</div>
+                    <div class="profile-role" id="profileRole">Role</div>
+                </div>
+                <i class="bi bi-chevron-up profile-caret"></i>
+            </div>
+            <ul class="profile-menu" id="profileMenu">
+                <li><a href="#" onclick="openMyProfile(); return false;"><i class="bi bi-person"></i> My Profile</a></li>
+                <li><a href="#" onclick="openChangePassword(); return false;"><i class="bi bi-key"></i> Change Password</a></li>
+            </ul>
+        </div>
+        <div class="sidebar-footer">
+            <small class="text-white-50">Apron Movement Control PKU</small>
         </div>
     </nav>
 
     <!-- Page Content -->
     <div id="content">
-        <button type="button" id="sidebarCollapse" class="btn mb-3">
-            <i class="bi bi-list"></i> Menu
-        </button>
+        
 
         <div id="homePage">
 
@@ -336,30 +530,16 @@
             <button class="btn btn-outline-secondary me-2" data-bs-toggle="modal" data-bs-target="#modalCetak">
                 <i class="bi bi-printer"></i> Laporan
             </button>
-            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalTambahData">
+            <button class="btn btn-primary d-none d-md-inline-flex align-items-center gap-1" onclick="openAddModal()">
                 <i class="bi bi-plus-lg"></i> Input Data
             </button>
         </div>
     </div>
 
-    <!-- Print Header - Only visible when printing -->
-    <div class="print-header">
-        <h2>APRON MOVEMENT CONTROL</h2>
-        <h3>Bandar Udara Sultan Syarif Kasim II Pekanbaru</h3>
-        <p>LOGBOOK AVIOBRIDGE</p>
-        <p id="printDateRange"></p>
-    </div>
-
-    <!-- Print Summary - Only visible when printing -->
-    <div class="print-summary">
-        <strong>Total Data: <span id="printTotalData">0</span></strong> | 
-        <strong>Dicetak: <span id="printDateTime"></span></strong>
-    </div>
-
-    <div class="card">
-        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-            <h6 class="m-0 font-weight-bold text-primary">Daftar Log Harian</h6>
-            <span class="badge bg-secondary" id="totalData">0 Data</span>
+        <div class="card border-0 shadow rounded-4 overflow-hidden">
+        <div class="card-header text-white py-3 d-flex justify-content-between align-items-center" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
+            <h6 class="m-0 fw-bold">Daftar Log Harian</h6>
+            <span class="badge bg-white text-primary" id="totalData">0 Data</span>
         </div>
         <div class="card-body p-0">
             <!-- Search/Filter Bar -->
@@ -417,8 +597,8 @@
                 </nav>
             </div>
             <div class="table-responsive">
-                <table class="table table-hover table-striped align-middle mb-0">
-                    <thead class="table-light">
+                <table class="table table-clean align-middle mb-0">
+                    <thead>
                         <tr>
                             <th>Tanggal</th>
                             <th>Flight</th>
@@ -444,11 +624,16 @@
     </div>
 </div>
 
+<!-- Floating Action Button (mobile only) untuk Input Data -->
+<button type="button" class="fab-input-data" onclick="openAddModal()" aria-label="Input Data">
+    <i class="bi bi-plus-lg"></i> Input Data
+</button>
+
 <div class="modal fade" id="modalTambahData" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Input Logbook Baru</h5>
+                <h5 class="modal-title" id="modalTambahDataTitle">Input Logbook Baru</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -577,12 +762,13 @@
 </div>
 
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap-select@1.14.0-beta3/dist/js/bootstrap-select.min.js"></script>
 
 <script>
     // --- 1. KONFIGURASI SUPABASE ---
-    // Use the supabaseClient already initialized in the head section
+    // Gunakan client yang sudah diinisialisasi secara global (oleh assets/logic.js)
+    const supabaseClient = window.supabaseClient;
     const BUCKET_NAME = 'logbook-foto'; // Pastikan bucket ini ada di Supabase Storage
 
     // Global variable to store all data
@@ -590,6 +776,9 @@
     let filteredData = [];
     let currentPage = 1;
     let rowsPerPage = 10;
+    let editingId = null; // id data yang sedang diedit (null = tambah baru)
+    let currentUserName = ''; // nama operator dari user yang login
+    let currentUnit = '';      // unit/role user yang login
 
     // --- 2. FUNGSI LOAD DATA UTAMA ---
     async function loadTable(startDate = null, endDate = null) {
@@ -605,6 +794,7 @@
                     .from('aviobridge_log')
                     .select('*')
                     .order('tanggal', { ascending: false })
+                    .order('block_time', { ascending: false })
                     .range(from, from + BATCH_SIZE - 1);
 
                 // Filter Tanggal jika ada (untuk fitur cetak)
@@ -646,6 +836,15 @@
         }
     }
 
+    // --- PERIKSA HAK EDIT/HAPUS (khusus role Avio: hanya operator terkait) ---
+    function canModify(item) {
+        // Role Admin/AMC bebas edit & hapus semua data
+        if (currentUnit === 'Admin' || currentUnit === 'AMC') return true;
+        // Role lain (Avio) hanya boleh data miliknya (nama operator = nama login)
+        if (!currentUserName) return false;
+        return (item.operator_name || '').trim().toLowerCase() === currentUserName.trim().toLowerCase();
+    }
+
     // --- 2B. FUNGSI RENDER TABLE ---
     function renderTable(data) {
         const tbody = document.getElementById('tableBody');
@@ -662,6 +861,8 @@
                 ? `<a href="${item.photo_url}" target="_blank"><img src="${item.photo_url}" title="Klik untuk perbesar"></a>` 
                 : '<span class="text-muted small">-</span>';
 
+            const canMod = canModify(item);
+
             let row = `
                 <tr>
                     <td>${item.tanggal}</td>
@@ -676,9 +877,13 @@
                     <td>${item.operator_name}</td>
                     <td>${fotoDisplay}</td>
                     <td class="no-print">
-                        <button class="btn btn-sm btn-outline-danger" onclick="hapusData('${item.id}')">
-                            <i class="bi bi-trash"></i>
-                        </button>
+                        ${canMod ? `
+                        <button class="btn btn-sm btn-outline-primary me-1" title="Edit" onclick="openEditData('${item.id}')"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-outline-danger" title="Hapus" onclick="hapusData('${item.id}')"><i class="bi bi-trash"></i></button>
+                        ` : `
+                        <button class="btn btn-sm btn-outline-primary me-1" title="Hanya operator terkait" disabled><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-outline-danger" title="Hanya operator terkait" disabled><i class="bi bi-trash"></i></button>
+                        `}
                     </td>
                 </tr>
             `;
@@ -848,6 +1053,39 @@
         } catch(e) {}
     }
 
+    // --- AUTO-FILL NAMA OPERATOR SESUAI USER LOGIN ---
+    async function autoFillOperator() {
+        try {
+            const { data: { session } } = await supabaseClient.auth.getSession();
+            if (!session) return;
+
+            const { data: profile } = await supabaseClient
+                .from('profiles')
+                .select('full_name, unit')
+                .eq('id', session.user.id)
+                .single();
+
+            const fullName = (profile && profile.full_name) || (session.user.email ? session.user.email.split('@')[0] : '');
+            if (!fullName) return;
+            currentUserName = fullName;
+            currentUnit = (profile && profile.unit) || '';
+
+            const select = document.getElementById('selectOperator');
+            if (!select) return;
+
+            // Pastikan nama user ada di dropdown (tambahkan jika belum ada)
+            if (!Array.from(select.options).some(opt => opt.value === fullName)) {
+                const opt = document.createElement('option');
+                opt.value = fullName;
+                opt.text = fullName;
+                select.add(opt);
+            }
+            select.value = fullName;
+        } catch (e) {
+            console.error('autoFillOperator error:', e);
+        }
+    }
+
     async function tambahDB(label, cat) {
         let val = prompt(`Tambah ${label}:`);
         if (!val) return;
@@ -855,7 +1093,45 @@
         await loadDropdowns();
     }
 
-    // --- 5. FUNGSI SIMPAN DATA (UPLOAD + INSERT) ---
+    // --- BUKA MODAL TAMBAH BARU ---
+    function openAddModal() {
+        editingId = null;
+        document.getElementById('modalTambahDataTitle').innerText = 'Input Logbook Baru';
+        document.getElementById('formLogbook').reset();
+        document.getElementById('inputTanggal').value = new Date().toISOString().split('T')[0];
+        try {
+            $('#selectFlight').selectpicker('refresh');
+            $('#selectType').selectpicker('refresh');
+        } catch(e) {}
+        new bootstrap.Modal(document.getElementById('modalTambahData')).show();
+    }
+
+    // --- BUKA MODAL EDIT ---
+    async function openEditData(id) {
+        const item = allData.find(x => String(x.id) === String(id)) || filteredData.find(x => String(x.id) === String(id));
+        if (!item) { alert('Data tidak ditemukan.'); return; }
+        editingId = item.id; // pakai id asli dari data (number/uuid) agar update & lookup foto konsisten
+        document.getElementById('modalTambahDataTitle').innerText = 'Edit Logbook';
+        document.getElementById('inputTanggal').value = item.tanggal || '';
+        document.getElementById('inputReg').value = item.registration || '';
+        document.getElementById('selectFlight').value = item.flight_number || '';
+        document.getElementById('selectType').value = item.aircraft_type || '';
+        document.getElementById('selectRute').value = item.rute || '';
+        document.getElementById('selectLeg').value = item.leg || 'A';
+        document.getElementById('selectDom_Intl').value = item.dom_intl || 'DOM';
+        document.getElementById('selectStand').value = item.parking_stand || '';
+        document.getElementById('inputBlockTime').value = item.block_time || '';
+        document.getElementById('selectOperator').value = item.operator_name || '';
+        document.getElementById('inputIncident').value = item.incident || '';
+        document.getElementById('inputFoto').value = '';
+        try {
+            $('#selectFlight').selectpicker('refresh');
+            $('#selectType').selectpicker('refresh');
+        } catch(e) {}
+        new bootstrap.Modal(document.getElementById('modalTambahData')).show();
+    }
+
+    // --- 5. FUNGSI SIMPAN DATA (INSERT / UPDATE) ---
     async function simpanData() {
         // Validasi Form Sederhana
         const tgl = document.getElementById('inputTanggal').value;
@@ -869,9 +1145,13 @@
         spinner.classList.remove('d-none');
 
         try {
+            // A. Foto: default foto lama (saat edit), null saat tambah baru
             let finalPhotoUrl = null;
-            
-            // A. Proses Upload Foto (Jika ada)
+            if (editingId) {
+                const existing = allData.find(x => String(x.id) === String(editingId)) || filteredData.find(x => String(x.id) === String(editingId));
+                finalPhotoUrl = existing ? (existing.photo_url || null) : null;
+            }
+
             const fileInput = document.getElementById('inputFoto');
             if (fileInput.files.length > 0) {
                 const file = fileInput.files[0];
@@ -889,7 +1169,7 @@
                 finalPhotoUrl = publicUrlData.publicUrl;
             }
 
-            // B. Insert Data ke Tabel
+            // B. Payload
             const payload = {
                 tanggal: tgl,
                 flight_number: flt,
@@ -905,11 +1185,18 @@
                 photo_url: finalPhotoUrl
             };
 
-            const { error: insertError } = await supabaseClient.from('aviobridge_log').insert([payload]);
-            if (insertError) throw insertError;
+            // C. Insert atau Update
+            let saveError = null;
+            if (editingId) {
+                ({ error: saveError } = await supabaseClient.from('aviobridge_log').update(payload).eq('id', editingId));
+            } else {
+                ({ error: saveError } = await supabaseClient.from('aviobridge_log').insert([payload]));
+            }
+            if (saveError) throw saveError;
 
             // Berhasil
-            alert("Data Berhasil Disimpan!");
+            alert(editingId ? "Data Berhasil Diperbarui!" : "Data Berhasil Disimpan!");
+            editingId = null;
             document.getElementById('formLogbook').reset();
             const modal = bootstrap.Modal.getInstance(document.getElementById('modalTambahData'));
             modal.hide();
@@ -932,62 +1219,158 @@
     }
 
     // --- 7. FUNGSI FILTER & CETAK ---
+    // Format tanggal ke bahasa Indonesia (aman terhadap timezone)
+    function formatDateID(dateStr) {
+        if (!dateStr) return '-';
+        const d = new Date(dateStr);
+        return isNaN(d) ? dateStr : d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+
+    // Tunggu semua foto dalam printArea termuat (maks 3 detik)
+    // agar gambar tidak kosong di hasil cetak
+    function waitForPrintImages(timeoutMs) {
+        const limit = timeoutMs || 3000;
+        const images = Array.from(document.querySelectorAll('#printArea img'));
+        if (images.length === 0) return Promise.resolve();
+        return Promise.race([
+            Promise.all(images.map(img => img.complete
+                ? Promise.resolve()
+                : new Promise(res => { img.onload = res; img.onerror = res; }))),
+            new Promise(res => setTimeout(res, limit))
+        ]);
+    }
+
+    // Ambil data langsung dari database SESUAI TANGGAL TERPILIH (semua baris,
+    // bukan hanya halaman yang tampil di daftar log harian), lalu render ke
+    // #printArea dan cetak hanya area tersebut. Tabel di layar tidak diubah.
     async function filterDanCetak() {
         const start = document.getElementById('filterStart').value;
         const end = document.getElementById('filterEnd').value;
-        
+
         if (!start || !end) {
             alert("Harap isi kedua tanggal");
             return;
         }
+        if (start > end) {
+            alert("'Dari Tanggal' tidak boleh lebih besar dari 'Sampai Tanggal'");
+            return;
+        }
 
-        // Load data spesifik lalu print
-        await loadTable(start, end);
-        
-        // Update print header information
-        const startDate = new Date(start).toLocaleDateString('id-ID', { 
-            day: 'numeric', 
-            month: 'long', 
-            year: 'numeric' 
-        });
-        const endDate = new Date(end).toLocaleDateString('id-ID', { 
-            day: 'numeric', 
-            month: 'long', 
-            year: 'numeric' 
-        });
-        
-        document.getElementById('printDateRange').textContent = 
-            `Periode: ${startDate} - ${endDate}`;
-        
-        // Update print summary
-        const totalData = document.getElementById('totalData').textContent;
-        document.getElementById('printTotalData').textContent = totalData;
-        
-        const now = new Date().toLocaleString('id-ID', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-        document.getElementById('printDateTime').textContent = now;
-        
-        // Tutup modal lalu print
-        const modal = bootstrap.Modal.getInstance(document.getElementById('modalCetak'));
-        modal.hide();
-        
-        setTimeout(() => {
-            window.print();
-            // Reload semua data setelah print selesai
-            setTimeout(() => {
-                loadTable();
-            }, 1000);
-        }, 500);
+        const btn = document.querySelector('#modalCetak .modal-footer .btn-primary');
+        const originalBtn = btn ? btn.innerHTML : '';
+        if (btn) { btn.disabled = true; btn.innerHTML = '⏳ Menyiapkan laporan...'; }
+
+        try {
+            // Fetch data sesuai rentang tanggal (batched, aman untuk data > 1000 baris)
+            let rows = [];
+            const BATCH_SIZE = 1000;
+            let from = 0;
+            let hasMore = true;
+
+            while (hasMore) {
+                const { data, error } = await supabaseClient
+                    .from('aviobridge_log')
+                    .select('*')
+                    .gte('tanggal', start)
+                    .lte('tanggal', end)
+                    .order('tanggal', { ascending: true })
+                    .order('block_time', { ascending: true })
+                    .range(from, from + BATCH_SIZE - 1);
+
+                if (error) throw error;
+
+                rows = rows.concat(data || []);
+                if (!data || data.length < BATCH_SIZE) {
+                    hasMore = false;
+                } else {
+                    from += BATCH_SIZE;
+                }
+            }
+
+            if (rows.length === 0) {
+                alert(`Tidak ada data pada periode ${formatDateID(start)} s/d ${formatDateID(end)}`);
+                return;
+            }
+
+            // Render SEMUA baris hasil filter ke print area
+            const rowHtml = rows.map((item, i) => `
+                <tr>
+                    <td style="text-align:center">${i + 1}</td>
+                    <td>${item.tanggal || '-'}</td>
+                    <td>${item.flight_number || '-'}</td>
+                    <td>${item.registration || '-'}</td>
+                    <td>${item.rute || '-'}</td>
+                    <td style="text-align:center">${item.leg || '-'}</td>
+                    <td style="text-align:center">${item.dom_intl || '-'}</td>
+                    <td>${item.aircraft_type || '-'}</td>
+                    <td>${item.parking_stand || '-'}</td>
+                    <td style="text-align:center">${item.block_time || '-'}</td>
+                    <td>${item.operator_name || '-'}</td>
+                    <td style="text-align:center">${item.photo_url ? `<img src="${item.photo_url}" alt="foto">` : '-'}</td>
+                </tr>
+            `).join('');
+
+            const now = new Date().toLocaleString('id-ID', {
+                day: 'numeric', month: 'long', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+
+            document.getElementById('printArea').innerHTML = `
+                <div class="report-title">APRON MOVEMENT CONTROL</div>
+                <div class="report-subtitle">Bandar Udara Sultan Syarif Kasim II Pekanbaru</div>
+                <div class="report-info"><strong>LAPORAN LOGBOOK AVIOBRIDGE</strong></div>
+                <div class="report-info">Periode: ${formatDateID(start)} s/d ${formatDateID(end)}</div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:4%">No</th>
+                            <th style="width:9%">Tanggal</th>
+                            <th style="width:9%">Flight</th>
+                            <th style="width:8%">Reg</th>
+                            <th style="width:9%">Rute</th>
+                            <th style="width:5%">Leg</th>
+                            <th style="width:6%">Dom/Intl</th>
+                            <th style="width:9%">Type</th>
+                            <th style="width:7%">Stand</th>
+                            <th style="width:8%">Block Time</th>
+                            <th style="width:13%">Operator</th>
+                            <th style="width:7%">Foto</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rowHtml}</tbody>
+                </table>
+                <div class="report-meta">
+                    <span><strong>Total Data: ${rows.length}</strong></span>
+                    <span>Dicetak: ${now}</span>
+                </div>
+            `;
+
+            // Tutup modal
+            const modalEl = document.getElementById('modalCetak');
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+
+            // Tunggu foto termuat agar tidak blank di hasil cetak
+            await waitForPrintImages();
+
+            setTimeout(() => window.print(), 200);
+        } catch (err) {
+            console.error('filterDanCetak error:', err);
+            alert("Gagal menyiapkan laporan: " + (err.message || err));
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = originalBtn; }
+        }
     }
+
+    // Isi ulang operator hanya saat menambah data baru (bukan saat edit)
+    document.getElementById('modalTambahData').addEventListener('shown.bs.modal', function() {
+        if (!editingId) autoFillOperator();
+    });
 
     // --- INITIALIZATION ---
     window.onload = async function() {
         await loadDropdowns();
+        await autoFillOperator();
         loadTable();
         document.getElementById('inputTanggal').value = new Date().toISOString().split('T')[0];
     };
@@ -1002,22 +1385,47 @@ function setActiveMenu(element) {
     element.classList.add('active');
 }
 
-// Toggle sidebar
-document.addEventListener('DOMContentLoaded', function() {
-    // Sidebar toggle functionality
-    const sidebarCollapse = document.getElementById('sidebarCollapse');
+// Toggle sidebar (DINAMIS)
+function toggleSidebar() {
     const sidebar = document.getElementById('sidebar');
-    const content = document.getElementById('content');
+    if (!sidebar) return;
+    sidebar.classList.toggle('collapsed');
+    updateSidebarToggleIcon();
+}
 
-    if (sidebarCollapse) {
-        sidebarCollapse.addEventListener('click', function() {
-            sidebar.classList.toggle('active');
-            content.classList.toggle('active');
-        });
-    }
+function initSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+    // Default: sidebar tertutup (hanya menampilkan ikon) saat pertama kali
+    let state = 'collapsed';
+    try {
+        const saved = localStorage.getItem('amcSidebarState');
+        if (saved === 'expanded' || saved === 'collapsed') state = saved;
+    } catch (e) {}
+    sidebar.classList.toggle('collapsed', state === 'collapsed');
+    updateSidebarToggleIcon();
+}
+
+function updateSidebarToggleIcon() {
+    const sidebar = document.getElementById('sidebar');
+    const icon = document.querySelector('.sidebar-toggle-btn i');
+    if (!sidebar || !icon) return;
+    const collapsed = sidebar.classList.contains('collapsed');
+    icon.className = collapsed ? 'bi bi-chevron-double-right' : 'bi bi-chevron-double-left';
+    try {
+        localStorage.setItem('amcSidebarState', collapsed ? 'collapsed' : 'expanded');
+    } catch (e) {}
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    initSidebar();
 });
 </script>
 
+</div>
+
+<!-- Print Area - diisi saat cetak laporan, hanya area ini yang tercetak -->
+<div id="printArea"></div>
 </body>
 </html>
 

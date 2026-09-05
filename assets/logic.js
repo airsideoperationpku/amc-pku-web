@@ -31,7 +31,15 @@ const ACCESS_RULES = {
 const PUBLIC_PAGES = ['dashboard.html', 'settings.html', 'index.html', 'register.html'];
 
 // Sembunyikan item menu sidebar yang tidak diizinkan untuk unit pengguna
+// Apakah unit ini Admin (super admin) — bebas akses semua halaman
+function isAdminUnit(unit) {
+    return String(unit || '').trim().toLowerCase() === 'admin';
+}
+
 function applySidebarFilter(unit) {
+    // Admin bebas melihat semua menu
+    if (isAdminUnit(unit)) return;
+
     const allowedPages = ACCESS_RULES[unit] || [];
     document.querySelectorAll('#sidebar ul.components li a').forEach((link) => {
         const href = link.getAttribute('href') || '';
@@ -80,9 +88,12 @@ async function checkAccess() {
         if (elUsername) elUsername.innerText = profile.username || '';
 
         // 4. Filter Hak Akses Berdasarkan Unit (cache unit agar filter bisa jalan sinkron)
-        const unit = profile.unit;
+        const unit = String(profile.unit || '').trim();
         try { sessionStorage.setItem('amcUserUnit', unit); } catch (e) {}
         applySidebarFilter(unit);
+
+        // Admin (super admin) bebas mengakses semua halaman — tanpa pembatasan
+        if (isAdminUnit(unit)) return;
 
         // Jika halaman saat ini tidak diizinkan, pindahkan ke dashboard
         if (!PUBLIC_PAGES.includes(currentPage) && !(ACCESS_RULES[unit] || []).includes(currentPage)) {

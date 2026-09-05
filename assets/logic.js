@@ -36,11 +36,18 @@ function isAdminUnit(unit) {
     return String(unit || '').trim().toLowerCase() === 'admin';
 }
 
+// Ambil daftar halaman yang diizinkan untuk sebuah unit (case-insensitive & trim)
+function getAccessPages(unit) {
+    const key = String(unit || '').trim().toLowerCase();
+    const found = Object.keys(ACCESS_RULES).find(k => k.toLowerCase() === key);
+    return found ? ACCESS_RULES[found] : [];
+}
+
 function applySidebarFilter(unit) {
     // Admin bebas melihat semua menu
     if (isAdminUnit(unit)) return;
 
-    const allowedPages = ACCESS_RULES[unit] || [];
+    const allowedPages = getAccessPages(unit);
     document.querySelectorAll('#sidebar ul.components li a').forEach((link) => {
         const href = link.getAttribute('href') || '';
         if (href && href.endsWith('.html')) {
@@ -96,7 +103,7 @@ async function checkAccess() {
         if (isAdminUnit(unit)) return;
 
         // Jika halaman saat ini tidak diizinkan, pindahkan ke dashboard
-        if (!PUBLIC_PAGES.includes(currentPage) && !(ACCESS_RULES[unit] || []).includes(currentPage)) {
+        if (!PUBLIC_PAGES.includes(currentPage) && !getAccessPages(unit).includes(currentPage)) {
             alert(`Unit ${unit} tidak memiliki izin akses ke halaman ini.`);
             window.location.href = 'dashboard.html';
         }

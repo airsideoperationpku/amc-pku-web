@@ -95,7 +95,33 @@ async function checkAccess() {
         if (elUsername) elUsername.innerText = profile.username || '';
 
         // 4. Filter Hak Akses Berdasarkan Unit (cache unit agar filter bisa jalan sinkron)
-        const unit = String(profile.unit || '').trim();
+        let unit = String(profile.unit || '').trim();
+
+        // Fallback: akun lama mungkin belum punya `unit` di profiles.
+        // Coba ambil role dari tabel personil (by user_id, lalu by nama lengkap).
+        if (!unit) {
+            try {
+                let { data: person } = await window.supabaseClient
+                    .from('personil')
+                    .select('role')
+                    .eq('user_id', session.user.id)
+                    .limit(1)
+                    .maybeSingle();
+                if (!person || !person.role) {
+                    ({ data: person } = await window.supabaseClient
+                        .from('personil')
+                        .select('role')
+                        .eq('nama_lengkap', profile.full_name)
+                        .limit(1)
+                        .maybeSingle());
+                }
+                if (person && person.role) unit = String(person.role).trim();
+            } catch (e) { /* abaikan */ }
+        }
+
+        // Fallback terakhir: beri akses default AMC agar user tidak terkunci total
+        if (!unit) unit = 'AMC';
+
         try { sessionStorage.setItem('amcUserUnit', unit); } catch (e) {}
         applySidebarFilter(unit);
 
@@ -154,7 +180,19 @@ async function loadUserProfile() {
         if (error || !profile) return;
 
         const fullName = profile.full_name || fallbackName;
-        const unit = profile.unit || 'User';
+        let unit = profile.unit || '';
+        if (!unit) {
+            try {
+                const { data: person } = await window.supabaseClient
+                    .from('personil')
+                    .select('role')
+                    .eq('user_id', session.user.id)
+                    .limit(1)
+                    .maybeSingle();
+                if (person && person.role) unit = person.role;
+            } catch (e) {}
+        }
+        if (!unit) unit = 'User';
         const avatarUrl = profile.avatar_url || metaAvatar;
 
         if (nameEl) nameEl.innerText = fullName;

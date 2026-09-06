@@ -440,6 +440,107 @@
             .fab-input-data { display: inline-flex; }
         }
     </style>
+<style>
+/* ==========================================
+   MOBILE: SIDEBAR -> FLOATING BOTTOM BAR
+   (seperti aplikasi mobile)
+========================================== */
+@media screen and (max-width: 767.98px) {
+    #sidebar {
+        position: fixed !important;
+        top: auto !important;
+        bottom: 12px !important;
+        left: 12px !important;
+        right: 12px !important;
+        width: auto !important;
+        height: auto !important;
+        flex-direction: row !important;
+        align-items: stretch !important;
+        border-radius: 18px !important;
+        background: rgba(30, 60, 114, 0.97) !important;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35) !important;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        z-index: 1050 !important;
+        padding: 4px !important;
+    }
+
+    #sidebar .sidebar-header,
+    #sidebar .sidebar-profile,
+    #sidebar .sidebar-footer,
+    #sidebar .sidebar-toggle-btn {
+        display: none !important;
+    }
+
+    #sidebar ul.components {
+        flex: 1 1 auto !important;
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-around !important;
+        gap: 2px !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        width: 100% !important;
+        list-style: none !important;
+    }
+
+    #sidebar ul.components li {
+        flex: 1 1 0 !important;
+        min-width: 0 !important;
+    }
+
+    #sidebar ul li a {
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 3px !important;
+        padding: 7px 2px 6px !important;
+        margin: 0 1px !important;
+        border-radius: 12px !important;
+        font-size: .6rem !important;
+        white-space: normal !important;
+        overflow: hidden !important;
+    }
+
+    #sidebar ul li a i {
+        font-size: 1.35rem !important;
+        min-width: 0 !important;
+    }
+
+    #sidebar ul li a.active {
+        background: rgba(255, 255, 255, 0.18) !important;
+        color: #fff !important;
+    }
+
+    #sidebar .nav-text {
+        opacity: 1 !important;
+        width: auto !important;
+        display: block !important;
+        font-size: .55rem !important;
+        line-height: 1.1 !important;
+        max-width: 100% !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+    }
+
+    /* Konten utama bebas margin sidebar & beri ruang utk bottom bar */
+    #sidebar ~ #content,
+    #sidebar:not(.collapsed) ~ #content {
+        margin-left: 0 !important;
+        padding: 12px !important;
+        padding-bottom: 96px !important;
+    }
+
+    /* Sembunyikan tombol "Tambah" melayang saat form/modal input terbuka */
+    body.form-open .fab-add,
+    body.form-open .fab-add-checklist,
+    body.form-open .fab-input-data {
+        display: none !important;
+    }
+}
+</style>
 </head>
 <body class="bg-light">
 
@@ -1096,6 +1197,7 @@
     // --- BUKA MODAL TAMBAH BARU ---
     function openAddModal() {
         editingId = null;
+        document.body.classList.add('form-open');
         document.getElementById('modalTambahDataTitle').innerText = 'Input Logbook Baru';
         document.getElementById('formLogbook').reset();
         document.getElementById('inputTanggal').value = new Date().toISOString().split('T')[0];
@@ -1111,6 +1213,7 @@
         const item = allData.find(x => String(x.id) === String(id)) || filteredData.find(x => String(x.id) === String(id));
         if (!item) { alert('Data tidak ditemukan.'); return; }
         editingId = item.id; // pakai id asli dari data (number/uuid) agar update & lookup foto konsisten
+        document.body.classList.add('form-open');
         document.getElementById('modalTambahDataTitle').innerText = 'Edit Logbook';
         document.getElementById('inputTanggal').value = item.tanggal || '';
         document.getElementById('inputReg').value = item.registration || '';
@@ -1365,6 +1468,11 @@
     // Isi ulang operator hanya saat menambah data baru (bukan saat edit)
     document.getElementById('modalTambahData').addEventListener('shown.bs.modal', function() {
         if (!editingId) autoFillOperator();
+    });
+
+    // Sembunyikan FAB saat modal input ditutup
+    document.getElementById('modalTambahData').addEventListener('hidden.bs.modal', function() {
+        document.body.classList.remove('form-open');
     });
 
     // --- INITIALIZATION ---

@@ -1005,11 +1005,20 @@ document.addEventListener('DOMContentLoaded', () => {
 // 8. THEME (LIGHT / DARK) — GLOBAL UNTUK SEMUA HALAMAN
 // ==========================================
 window.AMC_THEME_CSS = `
-/* Tombol toggle tema (floating pill, kanan-bawah) */
-.theme-toggle-btn{position:fixed;bottom:18px;right:18px;z-index:2000;width:48px;height:48px;border-radius:50%;border:none;background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);color:#fff;font-size:1.15rem;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);transition:transform .15s ease,box-shadow .15s ease}
-.theme-toggle-btn:hover{transform:scale(1.08);box-shadow:0 6px 20px rgba(0,0,0,.35)}
+/* Switch tema (light/dark) — posisi atas halaman */
+.theme-switch{position:fixed;top:14px;right:14px;z-index:2000;width:64px;height:32px;cursor:pointer;display:inline-block;user-select:none}
+.theme-switch-track{position:absolute;inset:0;border-radius:999px;background:#eef1f5;border:1px solid #d7dde5;box-shadow:inset 0 1px 3px rgba(0,0,0,.08);transition:background .3s ease,border-color .3s ease;display:flex;align-items:center;justify-content:space-between;padding:0 7px}
+.theme-switch-track .bi{font-size:.8rem;line-height:1;transition:color .3s ease}
+.theme-switch .theme-icon-sun{color:#f5a623}
+.theme-switch .theme-icon-moon{color:#6c757d}
+.theme-switch-knob{position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.3);transition:transform .3s cubic-bezier(.4,0,.2,1)}
+.theme-switch:hover .theme-switch-knob{box-shadow:0 3px 10px rgba(0,0,0,.4)}
+.theme-switch.dark .theme-switch-track{background:linear-gradient(135deg,#1e3c72 0%,#2a5298 100%);border-color:#2a5298}
+.theme-switch.dark .theme-icon-sun{color:#ffd54f}
+.theme-switch.dark .theme-icon-moon{color:#fff}
+.theme-switch.dark .theme-switch-knob{transform:translateX(32px)}
+@media print{.theme-switch{display:none !important}}
 /* ===== DARK MODE OVERRIDES ===== */
-[data-bs-theme="dark"] .theme-toggle-btn{background:#2a5298;color:#ffd54f}
 [data-bs-theme="dark"] body{background-color:#141a24 !important;color:#e9ecef}
 [data-bs-theme="dark"] .card-header.bg-white,
 [data-bs-theme="dark"] .card-footer.bg-white,
@@ -1048,8 +1057,11 @@ window.AMC_THEME_CSS = `
     }
 
     function updateToggleIcon(theme) {
-        const icon = document.getElementById('themeToggleIcon');
-        if (icon) icon.className = theme === 'dark' ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+        const wrap = document.getElementById('themeToggle');
+        if (wrap) {
+            wrap.classList.toggle('dark', theme === 'dark');
+            wrap.setAttribute('aria-checked', theme === 'dark' ? 'true' : 'false');
+        }
     }
 
     function applyTheme(theme) {
@@ -1077,15 +1089,28 @@ window.AMC_THEME_CSS = `
 
     function injectToggleButton() {
         if (document.getElementById('themeToggle')) return;
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.id = 'themeToggle';
-        btn.className = 'theme-toggle-btn';
-        btn.title = 'Ganti tema (Light/Dark)';
-        btn.setAttribute('aria-label', 'Ganti tema');
-        btn.innerHTML = '<i class="bi bi-moon-stars-fill" id="themeToggleIcon"></i>';
-        btn.addEventListener('click', window.toggleTheme);
-        document.body.appendChild(btn);
+        const wrap = document.createElement('div');
+        wrap.id = 'themeToggle';
+        wrap.className = 'theme-switch';
+        wrap.title = 'Ganti tema (Light/Dark)';
+        wrap.setAttribute('role', 'switch');
+        wrap.setAttribute('aria-label', 'Ganti tema (Light/Dark)');
+        wrap.setAttribute('aria-checked', 'false');
+        wrap.tabIndex = 0;
+        wrap.innerHTML =
+            '<span class="theme-switch-track">' +
+                '<i class="bi bi-sun-fill theme-icon-sun"></i>' +
+                '<i class="bi bi-moon-stars-fill theme-icon-moon"></i>' +
+            '</span>' +
+            '<span class="theme-switch-knob"></span>';
+        wrap.addEventListener('click', window.toggleTheme);
+        wrap.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                window.toggleTheme();
+            }
+        });
+        document.body.appendChild(wrap);
     }
 
     applyTheme(currentTheme());

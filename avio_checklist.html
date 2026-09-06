@@ -75,14 +75,21 @@
         function toggleChecklist(isServiceable) {
             const container = document.getElementById('checklistContainer');
             const inputs = container.querySelectorAll('input, textarea');
+            const noteContainer = document.getElementById('unserviceableNoteContainer');
+            const noteInput = document.getElementById('unserviceableNote');
 
             if (isServiceable) {
                 container.classList.remove('hidden');
+                noteContainer.classList.add('hidden');
+                noteInput.required = false;
+                noteInput.value = '';
                 inputs.forEach(el => {
                     if(el.type === 'radio') el.required = true;
                 });
             } else {
                 container.classList.add('hidden');
+                noteContainer.classList.remove('hidden');
+                noteInput.required = true;
                 inputs.forEach(el => {
                     el.required = false; // Disable required jika hidden
                     if(el.type === 'radio') el.checked = false;
@@ -793,6 +800,13 @@
                 </div>
             </div>
 
+            <div id="unserviceableNoteContainer" class="card mb-3 border-danger border-2 hidden">
+                <div class="card-body">
+                    <label class="form-label fw-bold">Keterangan Kerusakan <span class="text-danger">*</span></label>
+                    <textarea id="unserviceableNote" class="form-control" rows="3" placeholder="Contoh: Kerusakan wheelboggey, Perbaikan Vertical Limit, dll . . . ."></textarea>
+                </div>
+            </div>
+
             <div id="checklistContainer" class="hidden">
                 <div class="card">
                     <div class="card-header bg-dark text-white">
@@ -870,6 +884,7 @@
 
         const mainStatus = document.querySelector('input[name="mainStatus"]:checked').value;
         let itemsData = [];
+        let keterangan = '';
 
         if (mainStatus === 'Serviceable') {
             // Collect data items
@@ -881,6 +896,9 @@
                 const photo = photoInput && photoInput.dataset.base64 ? photoInput.dataset.base64 : null;
                 return { name, status, note, photo };
             });
+        } else {
+            // Kondisi Unserviceable: simpan keterangan kerusakan
+            keterangan = document.getElementById('unserviceableNote').value.trim();
         }
 
         const payload = {
@@ -889,6 +907,7 @@
             operator_name: document.getElementById('inOfficer').value,
             parking_stand: document.getElementById('inStand').value, // <--- TAMBAHAN
             kondisi_utama: mainStatus,
+            keterangan: keterangan,
             items: itemsData
         };
 
@@ -1030,7 +1049,7 @@
             msg += `\nStatus: ${data.kondisi_utama}`;
             
             if(data.kondisi_utama === 'Unserviceable') {
-                msg += '\n\nKETERANGAN: Unit tidak beroperasi.';
+                msg += '\n\nKETERANGAN: ' + (data.keterangan || 'Unit tidak beroperasi.');
             } else {
                 const badItems = data.items.filter(i => i.status === 'C' || i.status === 'D');
                 msg += `\n\nJumlah Temuan (C/D): ${badItems.length} Item`;
@@ -1088,6 +1107,7 @@
                     <div class="text-center py-5 border border-dark m-3 bg-light">
                         <h1 class="display-1 fw-bold">UNSERVICEABLE</h1>
                         <p>Unit dinyatakan tidak layak operasi pada tanggal tersebut.</p>
+                        ${row.keterangan ? `<p><strong>Keterangan:</strong> ${row.keterangan}</p>` : ''}
                     </div>
                 `;
             } else {

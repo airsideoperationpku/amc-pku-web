@@ -21,9 +21,9 @@ if (!window._sb) {
 // 2. LOGIKA HAK AKSES (RBAC)
 // ==========================================
 const ACCESS_RULES = {
-    'Admin': ['checklist.html', 'logbook.html', 'dashboard.html', 'settings.html', 'admintim.html', 'avio_checklist.html', 'avio_logbook.html', 'master-personil.html'],
-    'AMC': ['checklist.html', 'logbook.html', 'dashboard.html', 'settings.html', 'admintim.html', 'avio_checklist.html', 'avio_logbook.html'],
-    'Avio': ['avio_checklist.html', 'avio_logbook.html', 'dashboard.html', 'settings.html'],
+    'Admin': ['checklist.html', 'logbook.html', 'dashboard.html', 'settings.html', 'admintim.html', 'avio_checklist.html', 'avio_logbook.html', 'master-personil.html', 'jadwal-dinas.html'],
+    'AMC': ['checklist.html', 'logbook.html', 'dashboard.html', 'settings.html', 'admintim.html', 'avio_checklist.html', 'avio_logbook.html', 'jadwal-dinas.html'],
+    'Avio': ['avio_checklist.html', 'avio_logbook.html', 'dashboard.html', 'settings.html', 'jadwal-dinas.html'],
     'TIM': ['admintim.html', 'dashboard.html', 'settings.html']
 };
 

@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jadwal Dinas - AMC PKU</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <!-- Load Supabase library FIRST -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Initialize Supabase client (jangan redeclare SUPABASE_URL/KEY, sudah ada di logic.js) -->
+    <script>
+        if (typeof window.supabase !== 'undefined' && !window.supabaseClient) {
+            window.supabaseClient = window.supabase.createClient(
+                'https://voqvauapafsdcmuswsnq.supabase.co',
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvcXZhdWFwYWZzZGNtdXN3c25xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNDMxNTYsImV4cCI6MjA4MTcxOTE1Nn0.IJG7ofqfc4Qy44KlbTDGzo4OoQwO0xTXUwKPt04kRnI'
+            );
+        }
+    </script>
+    <!-- Excel export (SheetJS) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- Export gambar (HTML -> JPG) -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <!-- RBAC, profil, logout & filter menu sidebar (shared) -->
+    <script src="assets/logic.js"></script>
+
+    <style>
+        body { font-family: 'Poppins', sans-serif; }
+        .hidden { display: none !important; }
+
+        /* Sidebar (sama persis seperti halaman lain) */
+        #sidebar { position: fixed; top: 0; left: 0; display: flex; flex-direction: column; width: 250px; height: 100vh; background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%); color: #fff; transition: width 0.3s ease; box-shadow: 2px 0 5px rgba(0,0,0,0.1); z-index: 1000; overflow-x: hidden; white-space: nowrap; }
+        #sidebar.collapsed { width: 70px; }
+        #sidebar .sidebar-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 15px; background: rgba(0,0,0,0.2); min-height: 64px; }
+        #sidebar.collapsed .sidebar-header { justify-content: center; padding: 15px 0; }
+        #sidebar .brand h3 { margin: 0; font-size: 1.15rem; font-weight: 600; white-space: nowrap; }
+        #sidebar .brand p { margin: 0; font-size: .72rem; color: rgba(255,255,255,0.75); white-space: nowrap; }
+        #sidebar.collapsed .brand { display: none; }
+        .sidebar-toggle-btn { background: rgba(255,255,255,0.15); border: none; color: #fff; width: 34px; height: 34px; flex-shrink: 0; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.05rem; transition: background 0.2s; }
+        .sidebar-toggle-btn:hover { background: rgba(255,255,255,0.3); }
+        #sidebar ul.components { flex: 1 1 auto; padding: 10px 0; margin: 0; list-style: none; }
+        #sidebar ul li a { display: flex; align-items: center; gap: 12px; padding: 11px 16px; margin: 2px 8px; font-size: .95rem; color: rgba(255,255,255,0.8); text-decoration: none; transition: all 0.3s; border-radius: 6px; white-space: nowrap; }
+        #sidebar ul li a i { font-size: 1.25rem; min-width: 30px; text-align: center; flex-shrink: 0; }
+        #sidebar.collapsed ul li a { justify-content: center; padding: 11px 0; margin: 2px 10px; }
+        #sidebar ul li a:hover, #sidebar ul li a.active { color: #fff; background: rgba(255,255,255,0.12); }
+        .nav-text { transition: opacity 0.25s ease; white-space: nowrap; }
+        #sidebar.collapsed .nav-text { opacity: 0; width: 0; overflow: hidden; }
+        #content { margin-left: 70px; padding: 20px; min-height: 100vh; transition: margin-left 0.3s ease; }
+        #sidebar:not(.collapsed) ~ #content { margin-left: 250px; }
+        .wrapper { width: 100%; position: relative; }
+        /* Profile header (sidebar) — ditangani logic.js */
+        .sidebar-profile { position: relative; margin-top: auto; border-top: 1px solid rgba(255,255,255,0.15); }
+        .profile-header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; transition: background 0.2s; }
+        .profile-header:hover { background: rgba(255,255,255,0.08); }
+        .profile-avatar { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.4); display: inline-flex; align-items: center; justify-content: center; font-weight: 600; font-size: 1.05rem; color: #fff; overflow: hidden; }
+        .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .profile-info { flex: 1; min-width: 0; }
+        .profile-name { font-size: .95rem; font-weight: 600; color: #fff; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .profile-role { font-size: .72rem; color: rgba(255,255,255,0.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .profile-caret { color: rgba(255,255,255,0.7); font-size: .8rem; flex-shrink: 0; }
+        #sidebar.collapsed .profile-header { justify-content: center; padding: 12px 0; }
+        #sidebar.collapsed .profile-info, #sidebar.collapsed .profile-caret { display: none; }
+        .profile-menu { display: none; position: fixed; z-index: 2000; background: #fff; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); list-style: none; padding: 6px 0; margin: 0; width: 200px; }
+        .profile-menu.show { display: block; }
+        #sidebar .profile-menu li a { display: flex; align-items: center; gap: 10px; padding: 9px 14px; margin: 0; color: #333; font-size: .85rem; text-decoration: none; transition: background 0.15s; border-radius: 0; }
+        #sidebar .profile-menu li a:hover { background: #f0f3f8; color: #333; }
+        #sidebar .profile-menu li a i { font-size: 1rem; min-width: 18px; color: #1e3c72; }
+        .sidebar-footer { padding: 0 14px 12px; }
+        .sidebar-footer small { font-size: .68rem; }
+        #sidebar.collapsed .sidebar-footer { display: none; }
+
+        /* Matrix table (kalender dinas) */
+        .table-matrix th, .table-matrix td { text-align: center; vertical-align: middle; border: 1px solid #dee2e6; min-width: 42px; cursor: pointer; user-select: none; font-size: .82rem; font-weight: 600; }
+        .table-matrix td:hover { opacity: .8; }
+        .table-matrix th.weekend { background-color: #ffcccc !important; color: #cc0000; }
+        .col-name { min-width: 200px; text-align: left !important; background-color: #f8f9fa !important; cursor: default; }
+        .shift-pagi  { background-color: #cce5ff !important; color: #004085; }
+        .shift-malam { background-color: #b8daff !important; color: #004085; }
+        .shift-libur { background-color: #f8d7da !important; color: #721c24; }
+        .shift-cuti  { background-color: #fff3cd !important; color: #856404; }
+        .shift-spj   { background-color: #d1ecf1 !important; color: #0c5460; }
+        .shift-dik   { background-color: #d4edda !important; color: #155724; }
+        .shift-rfs   { background-color: #e2e3e5 !important; color: #383d41; }
+        .legend-chip { display: inline-flex; align-items: center; gap: 6px; font-size: .75rem; margin-right: 10px; }
+        .legend-box { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.1); display: inline-block; }
+        /* Personil list (editor kiri) */
+        .person-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border: 1px solid #e3e8f0; border-radius: 8px; margin-bottom: 6px; background: #fff; }
+        .person-item .person-name { font-size: .85rem; font-weight: 600; line-height: 1.2; }
+        .person-item .person-role { font-size: .68rem; color: #6c757d; }
+
+        /* Floating Action Button (mobile only) */
+        .fab-add { display: none; position: fixed; bottom: 80px; right: 20px; z-index: 1500; align-items: center; gap: 8px; padding: 14px 20px; border: none; border-radius: 50px; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: #fff; font-weight: 600; font-size: .95rem; box-shadow: 0 6px 18px rgba(0,0,0,0.3); cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }
+        .fab-add i { font-size: 1.1rem; }
+        .fab-add:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,0.35); }
+        @media (max-width: 767.98px) { .fab-add { display: inline-flex; } }
+        @media print { .no-print { display: none !important; } #sidebar { display: none !important; } }
+    </style>
+<style>
+/* MOBILE: SIDEBAR -> FLOATING BOTTOM BAR (sama seperti halaman lain) */
+@media screen and (max-width: 767.98px) {
+    #sidebar { position: fixed !important; top: auto !important; bottom: 12px !important; left: 12px !important; right: 12px !important; width: auto !important; height: auto !important; flex-direction: row !important; align-items: stretch !important; border-radius: 18px !important; background: rgba(30, 60, 114, 0.97) !important; box-shadow: 0 10px 30px rgba(0,0,0,0.35) !important; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 1050 !important; padding: 4px !important; }
+    #sidebar .sidebar-header, #sidebar .sidebar-profile, #sidebar .sidebar-footer, #sidebar .sidebar-toggle-btn { display: none !important; }
+    #sidebar ul.components { flex: 1 1 auto !important; display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: space-around !important; gap: 2px !important; padding: 0 !important; margin: 0 !important; width: 100% !important; list-style: none !important; }
+    #sidebar ul.components li { flex: 1 1 0 !important; min-width: 0 !important; }
+    #sidebar ul li a { flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 3px !important; padding: 7px 2px 6px !important; margin: 0 1px !important; border-radius: 12px !important; font-size: .6rem !important; white-space: normal !important; overflow: hidden !important; }
+    #sidebar ul li a i { font-size: 1.35rem !important; min-width: 0 !important; }
+    #sidebar ul li a.active { background: rgba(255,255,255,0.18) !important; color: #fff !important; }
+    #sidebar .nav-text { opacity: 1 !important; width: auto !important; display: block !important; font-size: .55rem !important; line-height: 1.1 !important; max-width: 100% !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+    #sidebar ~ #content, #sidebar:not(.collapsed) ~ #content { margin-left: 0 !important; padding: 12px !important; padding-bottom: 96px !important; }
+    body.form-open .fab-add { display: none !important; }
+}
+</style>
+</head>
+<body class="bg-light">
+
+<div class="wrapper">
+    <!-- Sidebar -->
+    <nav id="sidebar" class="collapsed no-print">
+        <div class="sidebar-header">
+            <div class="brand">
+                <h3><i class="bi bi-airplane-fill"></i> AMC</h3>
+                <p>Sultan Syarif Kasim II</p>
+            </div>
+            <button type="button" class="sidebar-toggle-btn" onclick="toggleSidebar()" aria-label="Buka/Tutup menu" title="Buka/Tutup menu">
+                <i class="bi bi-chevron-double-right"></i>
+            </button>
+        </div>
+
+        <ul class="list-unstyled components">
+            <li><a href="dashboard.html"><i class="bi bi-house"></i> <span class="nav-text">Dashboard</span></a></li>
+            <li><a href="checklist.html"><i class="bi bi-card-checklist"></i> <span class="nav-text">Checklist</span></a></li>
+            <li><a href="logbook.html"><i class="bi bi-journal-check"></i> <span class="nav-text">Logbook</span></a></li>
+            <li><a href="admintim.html"><i class="bi bi-display"></i> <span class="nav-text">Admin TIM</span></a></li>
+            <li><a href="avio_logbook.html"><i class="bi bi-journal-plus"></i> <span class="nav-text">Avio Logbook</span></a></li>
+            <li><a href="avio_checklist.html"><i class="bi bi-person-check"></i> <span class="nav-text">Avio Checklist</span></a></li>
+            <li><a href="master-personil.html"><i class="bi bi-person-fill-gear"></i> <span class="nav-text">Master Personil</span></a></li>
+            <li><a href="#" onclick="setActiveMenu(this); return false;" class="active"><i class="bi bi-calendar3"></i> <span class="nav-text">Jadwal Dinas</span></a></li>
+            <li><a href="#" onclick="logout(); return false;"><i class="bi bi-box-arrow-right"></i> <span class="nav-text">Logout</span></a></li>
+        </ul>
+
+        <div class="sidebar-profile">
+            <div class="profile-header" onclick="toggleProfileMenu(event)">
+                <div class="profile-avatar" id="profileAvatar">U</div>
+                <div class="profile-info">
+                    <div class="profile-name" id="profileName">Memuat...</div>
+                    <div class="profile-role" id="profileRole">Role</div>
+                </div>
+                <i class="bi bi-chevron-up profile-caret"></i>
+            </div>
+            <ul class="profile-menu" id="profileMenu">
+                <li><a href="#" onclick="openMyProfile(); return false;"><i class="bi bi-person"></i> My Profile</a></li>
+                <li><a href="#" onclick="openChangePassword(); return false;"><i class="bi bi-key"></i> Change Password</a></li>
+            </ul>
+        </div>
+        <div class="sidebar-footer">
+            <small class="text-white-50">Apron Movement Control PKU</small>
+        </div>
+    </nav>
+    <!-- Page Content -->
+    <div id="content">
+
+        <!-- ============ 1. HALAMAN DAFTAR JADWAL DINAS ============ -->
+        <div id="listPage">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h3 class="text-primary fw-bold"><i class="bi bi-calendar3"></i> Jadwal Dinas</h3>
+                    <p class="text-muted mb-0">Daftar jadwal dinas personil per periode bulan &amp; tahun.</p>
+                </div>
+                <button class="btn btn-primary shadow-sm d-none d-md-inline-flex align-items-center gap-1" onclick="goToParam()">
+                    <i class="bi bi-plus-circle me-1"></i> Buat Jadwal Baru
+                </button>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white py-3">
+                    <h6 class="m-0 text-primary fw-bold"><i class="bi bi-list-ul"></i> Daftar Jadwal Dinas</h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">Periode (Bulan &amp; Tahun)</th>
+                                <th>Status</th>
+                                <th class="text-center">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="jadwalTableBody">
+                            <tr><td colspan="3" class="text-center py-4">Memuat data...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <!-- ============ 2. HALAMAN PARAMETER (PILIH BULAN & TAHUN) ============ -->
+        <div id="paramPage" class="hidden">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h4 class="fw-bold text-primary"><i class="bi bi-gear"></i> Parameter Jadwal Baru</h4>
+                <button class="btn btn-outline-secondary btn-sm" onclick="showList()">Batal</button>
+            </div>
+            <div class="card border-0 shadow-sm mx-auto" style="max-width:560px">
+                <div class="card-body">
+                    <p class="text-muted small">Pilih bulan dan tahun untuk jadwal dinas, lalu klik <strong>Next</strong> untuk menyusun kalender dinas.</p>
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Bulan <span class="text-danger">*</span></label>
+                            <select id="paramBulan" class="form-select">
+                                <option value="1">Januari</option>
+                                <option value="2">Februari</option>
+                                <option value="3">Maret</option>
+                                <option value="4">April</option>
+                                <option value="5">Mei</option>
+                                <option value="6">Juni</option>
+                                <option value="7">Juli</option>
+                                <option value="8">Agustus</option>
+                                <option value="9">September</option>
+                                <option value="10">Oktober</option>
+                                <option value="11">November</option>
+                                <option value="12">Desember</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Tahun <span class="text-danger">*</span></label>
+                            <input type="number" id="paramTahun" class="form-control" min="2020" max="2100">
+                        </div>
+                    </div>
+                    <div class="text-end mt-4">
+                        <button class="btn btn-primary px-4" onclick="goToEditor()">Next <i class="bi bi-arrow-right"></i></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- ============ 3. HALAMAN EDITOR (KALENDER DINAS) ============ -->
+        <div id="editorPage" class="hidden">
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                <div>
+                    <h4 class="fw-bold text-primary mb-0"><i class="bi bi-calendar3"></i> Editor Jadwal Dinas</h4>
+                    <small class="text-muted">Periode: <span id="editorPeriode" class="fw-bold">-</span></small>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary" onclick="showList()"><i class="bi bi-arrow-left"></i> Kembali</button>
+                    <button class="btn btn-warning" onclick="saveJadwal('draft')"><i class="bi bi-save"></i> Simpan Draft</button>
+                    <button class="btn btn-success" onclick="saveJadwal('Final')"><i class="bi bi-check2-circle"></i> Finalisasi</button>
+                </div>
+            </div>
+
+            <!-- Legenda shift -->
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body d-flex flex-wrap align-items-center gap-1" id="legendBox"></div>
+            </div>
+
+            <!-- Kondisi / Jam Dinas -->
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 fw-bold small"><i class="bi bi-clock-history"></i> Kondisi / Jam Dinas</h6>
+                    <button class="btn btn-sm btn-outline-secondary py-0 px-2" type="button" data-bs-toggle="collapse" data-bs-target="#shiftTimesCollapse" aria-expanded="true" title="Tampilkan/sembunyikan"><i class="bi bi-chevron-down"></i></button>
+                </div>
+                <div id="shiftTimesCollapse" class="collapse show">
+                    <div class="card-body p-2">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Status Dinas</th>
+                                        <th style="width:110px">Kode ERP</th>
+                                        <th style="width:130px">Jam Mulai</th>
+                                        <th style="width:130px">Jam Selesai</th>
+                                        <th>Preview</th>
+                                        <th style="width:70px">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="shiftTimesBody"></tbody>
+                            </table>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="addDinas()"><i class="bi bi-plus-circle"></i> Tambah Jam Dinas</button>
+                        <small class="text-muted d-block mt-2">Atur <b>Kode ERP</b> dan rentang jam untuk masing-masing status dinas. Kode ERP adalah kode shift yang dipakai sistem ERP (mis. Pagi = <b>P</b>, Malam = <b>M</b>, Libur = <b>F</b>). Status <b>Libur, Cuti, SPJ, DIK, RFS</b> bersifat tetap (tanpa jam tetapi kode ERP-nya tetap bisa diatur). Untuk dinas berbasis jam (Pagi, Malam, dan kustom seperti P/S) Anda bisa <b>menambah, mengubah nama, dan menghapus</b>. Kode ERP ini ikut tersimpan, tampil di legenda, tooltip sel matriks, dan kolom "Kode ERP" pada ekspor Excel.</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <!-- Kiri: daftar personil (tambah / kurang baris) -->
+                <div class="col-lg-3">
+                    <div class="card border-0 shadow-sm mb-3">
+                        <div class="card-header bg-white py-2">
+                            <h6 class="m-0 fw-bold small"><i class="bi bi-people"></i> Personil Tersedia</h6>
+                        </div>
+                        <div class="card-body p-2" style="max-height:340px;overflow:auto">
+                            <div id="availableList"></div>
+                        </div>
+                    </div>
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                            <h6 class="m-0 fw-bold small"><i class="bi bi-list-ol"></i> Baris Tabel</h6>
+                            <span class="badge bg-primary" id="selectedCount">0 personil</span>
+                        </div>
+                        <div class="card-body p-2 small text-muted">
+                            Klik <i class="bi bi-plus"></i> pada personil kiri untuk menambah baris, dan <i class="bi bi-dash"></i> di baris tabel untuk menghapus.
+                        </div>
+                    </div>
+                </div>
+                <!-- Kanan: matriks kalender dinas -->
+                <div class="col-lg-9">
+                    <div class="card border-0 shadow-sm mb-3">
+                        <div class="card-header bg-white py-2 d-flex flex-wrap align-items-center gap-2">
+                            <span class="fw-bold small me-1"><i class="bi bi-tools"></i> Isi Cepat:</span>
+                            <select id="bulkPerson" class="form-select form-select-sm" style="width:auto"></select>
+                            <button class="btn btn-sm btn-outline-primary" onclick="bulkSetAll('Pagi')">Semua Pagi</button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="bulkSetAll('Malam')">Semua Malam</button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="bulkClear()"><i class="bi bi-eraser"></i> Kosongkan</button>
+                        </div>
+                    </div>
+
+                    <!-- ===== AUTO POLA DINAS: kolom tersendiri (pilih nama + ketik status 7 hari dipisah koma) ===== -->
+                    <div class="card border-0 shadow-sm mb-3">
+                        <div class="card-header bg-white py-2 d-flex justify-content-between align-items-center">
+                            <h6 class="m-0 fw-bold small"><i class="bi bi-magic"></i> Auto Pola Dinas &mdash; Pola 7 Hari</h6>
+                            <button class="btn btn-sm btn-outline-secondary py-0 px-2" type="button" data-bs-toggle="collapse" data-bs-target="#autoPatternCollapse" aria-expanded="true" title="Tampilkan/sembunyikan"><i class="bi bi-chevron-down"></i></button>
+                        </div>
+                        <div id="autoPatternCollapse" class="collapse show">
+                            <div class="card-body p-2">
+                                <div class="row g-2 align-items-end">
+                                    <div class="col-md-4">
+                                        <label class="form-label small fw-bold mb-1" for="patternPerson">Nama Personil</label>
+                                        <select id="patternPerson" class="form-select form-select-sm" onchange="onPatternPersonChange()"></select>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label small fw-bold mb-1" for="patternStartDay">Tgl Mulai</label>
+                                        <input type="number" id="patternStartDay" class="form-control form-control-sm" min="1" value="1" onchange="renderPatternPreview()">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small fw-bold mb-1" for="patternInput">Status Dinas 7 Hari <span class="fw-normal text-muted">(pisah dengan koma)</span></label>
+                                        <input type="text" id="patternInput" class="form-control form-control-sm" autocomplete="off" placeholder="Pagi,Pagi,Malam,Malam,Libur,Libur,Libur" oninput="renderPatternPreview()">
+                                    </div>
+                                </div>
+                                <div class="d-flex flex-wrap align-items-center gap-1 mt-2">
+                                    <span class="small text-muted me-1">Klik untuk menambah ke pola:</span>
+                                    <div id="patternQuickChips" class="d-flex flex-wrap gap-1"></div>
+                                </div>
+                                <div id="patternPreview" class="mt-2"></div>
+                                <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                                    <button class="btn btn-sm btn-primary" onclick="applyAutoPattern()"><i class="bi bi-magic"></i> Terapkan Pola</button>
+                                    <button class="btn btn-sm btn-outline-info hidden" id="btnPrevPattern" type="button" onclick="continuePrevPatterns()" title="Geser pola mengikuti sisa pola bulan sebelumnya"></button>
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="resetPatternInput()"><i class="bi bi-arrow-counterclockwise"></i> Reset Input</button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="clearPatternPerson()"><i class="bi bi-x-circle"></i> Hapus Pola Personil Ini</button>
+                                </div>
+                                <div id="patternMsg" class="small mt-2"></div>
+                                <div id="patternSavedList" class="mt-2"></div>
+                                <small class="text-muted d-block mt-2">
+                                    Pilih <b>nama personil</b>, ketik status dinas untuk <b>7 hari</b> dipisah dengan koma (contoh <code>Pagi,Pagi,Malam,Malam,Libur,Libur,Libur</code>), atur <b>Tgl Mulai</b>, lalu klik <b>Terapkan Pola</b>.
+                                    Pola diisi dari tanggal mulai sampai akhir bulan &mdash; <b>setelah hari ke-7 otomatis lanjut ke hari berikutnya sesuai pola</b> (kembali ke hari ke-1, lalu ke-2, dst).
+                                    Tanda <code>-</code> berarti hari dikosongkan. Status yang belum ada di daftar Kondisi/Jam Dinas akan ditawarkan untuk dibuat otomatis.
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card border-0 shadow-sm">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-matrix mb-0">
+                                <thead class="table-light">
+                                    <tr id="matrixHeaderDays"></tr>
+                                    <tr id="matrixHeaderDates"></tr>
+                                </thead>
+                                <tbody id="matrixBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- Floating Action Button (mobile only) untuk Buat Jadwal Baru -->
+<button type="button" class="fab-add" onclick="goToParam()" aria-label="Buat Jadwal Baru">
+    <i class="bi bi-plus-circle"></i> Buat Jadwal Baru
+</button>
+
+<script>
+    // ===== Supabase client (dari logic.js) =====
+    const sb = window.supabaseClient;
+
+    // ===== Konstanta shift & kalender =====
+    // Status tetap (bukan jam dinas, tidak bisa dihapus/ubah nama)
+    const FIXED_DINAS = ['Libur', 'Cuti', 'SPJ', 'DIK', 'RFS'];
+    // Urutan default dinas: jam dinas dulu (Pagi, Malam), lalu status tetap
+    const DEFAULT_DINAS_ORDER = ['Pagi', 'Malam', 'Libur', 'Cuti', 'SPJ', 'DIK', 'RFS'];
+    // Kelas CSS warna untuk dinas bawaan
+    const SHIFT_CLASSES = { 'Pagi':'shift-pagi','Malam':'shift-malam','Libur':'shift-libur','Cuti':'shift-cuti','SPJ':'shift-spj','DIK':'shift-dik','RFS':'shift-rfs' };
+    const SHIFT_BADGE = { 'Pagi':'bg-primary','Malam':'bg-info text-dark','Libur':'bg-danger','Cuti':'bg-warning text-dark','SPJ':'bg-info text-dark','DIK':'bg-success','RFS':'bg-secondary' };
+    // Palet warna untuk dinas jam kustom (tidak punya kelas CSS)
+    const SHIFT_PALETTE = ['#ffd6a5','#caffbf','#a0c4ff','#bdb2ff','#ffc6ff','#9bf6ff','#fdffb6','#f4978e'];
+    const MONTH_NAMES = ["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+    const DAY_NAMES = ['Min','Sen','Sel','Rab','Kam','Jum','Sab'];
+
+    // Rentang jam default per status dinas (Pagi 08:00-20:00, Malam 20:00-08:00) + kode ERP (bisa diubah di "Kondisi / Jam Dinas")
+    const DEFAULT_SHIFT_TIMES = {
+        'Pagi':  { start:'08:00', end:'20:00', erp:'P' },
+        'Malam': { start:'20:00', end:'08:00', erp:'M' },
+        'Libur': { start:'', end:'', erp:'F' },
+        'Cuti':  { start:'', end:'', erp:'CUTI' },
+        'SPJ':   { start:'', end:'', erp:'SPJ' },
+        'DIK':   { start:'', end:'', erp:'DIK' },
+        'RFS':   { start:'', end:'', erp:'RFS' }
+    };
+
+    // ===== State editor =====
+    let editingId = null;        // null = jadwal baru
+    let editorBulan = null;
+    let editorTahun = null;
+    let availablePersonil = [];  // dari tabel personil (master)
+    let selectedPersonil = [];   // [{id, nama, jabatan}] -> jadi baris
+    let dataDinas = {};          // { personId: { day: shift } }
+    let shiftTimes = {};         // { 'Pagi': {start:'08:00', end:'20:00'}, ... }
+    let dinasOrder = [];         // urutan nama dinas untuk cycle & tampil
+    let shiftColors = {};        // warna kustom { nama: '#hex' } untuk dinas tanpa kelas CSS
+    let autoPatterns = {};       // pola 7 hari per personil { personId: { start:1, pattern:['Pagi',...] } }
+    let prevMonthPatterns = null;// pola bulan sebelumnya { bulan, tahun, patterns } utk lanjut antar bulan
+
+    // ===== Util =====
+    function esc(str){ return String(str==null?'':str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function daysInMonth(year, month){ return new Date(year, month, 0).getDate(); } // month 1..12
+    function cloneDefaults(){ return JSON.parse(JSON.stringify(DEFAULT_SHIFT_TIMES)); }
+
+    // Deteksi error Supabase/Postgres karena sebuah kolom belum ada di tabel
+    function isMissingColumnError(err, col){
+        if(!err) return false;
+        const msg = (String(err.message||'')+' '+String(err.details||'')+' '+String(err.hint||'')).toLowerCase();
+        const c = String(col).toLowerCase();
+        if(err.code === '42703') return true;
+        if(msg.indexOf(c) === -1) return false;
+        return msg.indexOf('column') !== -1 || msg.indexOf('does not exist') !== -1 || msg.indexOf('pgrst204') !== -1;
+    }
+
+    // ===== Kondisi / Jam Dinas (dinamis) =====
+    function isFixedDinas(name){ return FIXED_DINAS.indexOf(name) !== -1; }
+
+    // Pastikan dinas kustom punya warna dari palet
+    function ensureShiftColor(name){
+        if(SHIFT_CLASSES[name]) return;
+        if(!shiftColors[name]){
+            const customCount = Object.keys(shiftColors).length;
+            shiftColors[name] = SHIFT_PALETTE[customCount % SHIFT_PALETTE.length];
+        }
+    }
+    function getCellClass(shift){ return SHIFT_CLASSES[shift] || ''; }
+    function getCellStyle(shift){
+        if(SHIFT_CLASSES[shift] || !shift) return '';
+        ensureShiftColor(shift);
+        const c = shiftColors[shift];
+        return c ? ('background-color:' + c + ' !important;color:#333;') : '';
+    }
+
+    // Label tampil untuk sebuah status, mis. "Pagi [P] (08:00 s/d 20:00)" — kode ERP ikut tampil bila diisi
+    function getShiftLabel(shift){
+        const t = shiftTimes[shift];
+        if(!t || (!t.start && !t.end && !t.erp)) return shift;
+        const erp = t.erp ? (' [' + t.erp + ']') : '';
+        const jam = (t.start || t.end) ? (' (' + (t.start||'--:--') + ' s/d ' + (t.end||'--:--') + ')') : '';
+        return shift + erp + jam;
+    }
+
+    // Render tabel input jam per status dinas (dinamis)
+    function renderShiftTimes(){
+        const tbody = document.getElementById('shiftTimesBody');
+        if(!tbody) return;
+        tbody.innerHTML = dinasOrder.map((name, idx) => {
+            const t = shiftTimes[name] || { start:'', end:'', erp:'' };
+            const fixed = isFixedDinas(name);
+            const badgeCls = SHIFT_BADGE[name] || 'bg-secondary';
+            const nameCell = fixed
+                ? '<span class="badge ' + badgeCls + '">' + esc(name) + '</span>'
+                : '<input type="text" class="form-control form-control-sm fw-bold" value="' + esc(name) + '" onchange="renameDinasIdx(' + idx + ',this.value)" style="min-width:90px">';
+            // Kode ERP: bisa diatur untuk SEMUA status (termasuk status tetap) — input tidak di-disable
+            const erpCell = '<input type="text" class="form-control form-control-sm text-center" maxlength="10" value="' + esc(t.erp||'') + '" placeholder="ERP" onchange="updateShiftTimeIdx(' + idx + ',\'erp\',this.value)" style="min-width:72px">';
+            const timeCell = '<input type="time" class="form-control form-control-sm" value="' + (t.start||'') + '"' + (fixed?' disabled':'') + ' onchange="updateShiftTimeIdx(' + idx + ',\'start\',this.value)">';
+            const endCell  = '<input type="time" class="form-control form-control-sm" value="' + (t.end||'') + '"' + (fixed?' disabled':'') + ' onchange="updateShiftTimeIdx(' + idx + ',\'end\',this.value)">';
+            const action = fixed ? '' : '<button class="btn btn-sm btn-outline-danger py-0 px-1" title="Hapus jam dinas" onclick="removeDinasIdx(' + idx + ')"><i class="bi bi-trash"></i></button>';
+            return '<tr>' +
+                '<td>' + nameCell + '</td>' +
+                '<td>' + erpCell + '</td>' +
+                '<td>' + timeCell + '</td>' +
+                '<td>' + endCell + '</td>' +
+                '<td class="small text-muted">' + esc(getShiftLabel(name)) + '</td>' +
+                '<td class="text-center">' + action + '</td>' +
+            '</tr>';
+        }).join('');
+        renderLegend();
+        renderAutoPatternPanel();
+    }
+
+    // Tambah jam dinas baru (nama kustom, jam kosong), disisipkan sebelum status tetap
+    function addDinas(){
+        let n = 1, name;
+        do { name = 'Dinas ' + n; n++; } while(dinasOrder.indexOf(name) !== -1 || shiftTimes[name]);
+        let insertAt = dinasOrder.length;
+        for(let i=0;i<dinasOrder.length;i++){ if(isFixedDinas(dinasOrder[i])){ insertAt=i; break; } }
+        dinasOrder.splice(insertAt, 0, name);
+        shiftTimes[name] = { start:'', end:'', erp:'' };
+        ensureShiftColor(name);
+        renderShiftTimes(); renderMatrix();
+    }
+
+    // Ubah nama dinas (hanya yang tidak tetap); update dataDinas yang memakai nama lama
+    function renameDinasIdx(idx, newName){
+        newName = String(newName||'').trim();
+        const oldName = dinasOrder[idx];
+        if(!oldName || isFixedDinas(oldName)) { renderShiftTimes(); return; }
+        if(!newName){ renderShiftTimes(); return; }
+        if(newName === oldName){ return; }
+        if(dinasOrder.indexOf(newName) !== -1 || shiftTimes[newName]){
+            alert('Nama dinas "' + newName + '" sudah dipakai. Pilih nama lain.');
+            renderShiftTimes(); return;
+        }
+        dinasOrder[idx] = newName;
+        shiftTimes[newName] = shiftTimes[oldName] || { start:'', end:'', erp:'' };
+        delete shiftTimes[oldName];
+        if(shiftColors[oldName]){ shiftColors[newName] = shiftColors[oldName]; delete shiftColors[oldName]; }
+        for(const pid in dataDinas){
+            for(const day in dataDinas[pid]){
+                if(dataDinas[pid][day] === oldName) dataDinas[pid][day] = newName;
+            }
+        }
+        for(const pid in autoPatterns){
+            const ap = autoPatterns[pid];
+            if(ap && ap.pattern) ap.pattern = ap.pattern.map(v => v === oldName ? newName : v);
+        }
+        renderShiftTimes(); renderMatrix();
+    }
+
+    // Hapus jam dinas (hanya yang tidak tetap); kosongkan sel yang memakainya
+    function removeDinasIdx(idx){
+        const name = dinasOrder[idx];
+        if(!name || isFixedDinas(name)) return;
+        if(!confirm('Hapus jam dinas "' + name + '"? Sel matriks yang memakai dinas ini akan dikosongkan.')) return;
+        dinasOrder.splice(idx, 1);
+        delete shiftTimes[name];
+        delete shiftColors[name];
+        for(const pid in dataDinas){
+            for(const day in dataDinas[pid]){
+                if(dataDinas[pid][day] === name) dataDinas[pid][day] = '';
+            }
+        }
+        for(const pid in autoPatterns){
+            const ap = autoPatterns[pid];
+            if(ap && ap.pattern) ap.pattern = ap.pattern.map(v => v === name ? '' : v);
+        }
+        renderShiftTimes(); renderMatrix();
+    }
+
+    // Simpan perubahan jam/kode ERP dari input (berbasis index)
+    function updateShiftTimeIdx(idx, field, value){
+        const name = dinasOrder[idx];
+        if(!name) return;
+        if(!shiftTimes[name]) shiftTimes[name] = { start:'', end:'', erp:'' };
+        shiftTimes[name][field] = (field === 'erp') ? String(value==null?'':value).trim() : value;
+        renderShiftTimes(); renderMatrix();
+    }
+
+    // Render legenda (dengan jam & warna dinamis)
+    function renderLegend(){
+        const el = document.getElementById('legendBox');
+        if(!el) return;
+        el.innerHTML = '<span class="fw-bold me-2 small">Klik sel untuk mengubah dinas:</span>' +
+            dinasOrder.map(s => {
+                const cls = getCellClass(s);
+                const style = getCellStyle(s);
+                return '<span class="legend-chip"><span class="legend-box ' + cls + '"' + (style?(' style="'+style+'"'):'') + '></span>' + esc(getShiftLabel(s)) + '</span>';
+            }).join('');
+    }
+
+    // ===== Auto Pola Dinas: kolom tersendiri (pilih nama + ketik pola 7 hari, pisah koma) =====
+    // Token yang berarti "hari dikosongkan"
+    const PATTERN_EMPTY_TOKENS = ['-', '.', '--', 'kosong', 'off'];
+    const PATTERN_DAYS = 7;   // pola utama 7 hari; setelah hari ke-7 kembali ke hari ke-1
+
+    function normKey(s){ return String(s==null?'':s).trim().toLowerCase().replace(/\s+/g,' '); }
+    // Cari nama dinas resmi dari ketikan pengguna (tidak peka huruf besar/kecil & spasi)
+    function findDinasName(token){
+        const k = normKey(token);
+        if(!k) return null;
+        for(let i=0;i<dinasOrder.length;i++){ if(normKey(dinasOrder[i]) === k) return dinasOrder[i]; }
+        return null;
+    }
+    function isEmptyToken(t){ const k = normKey(t); return k === '' || PATTERN_EMPTY_TOKENS.indexOf(k) !== -1; }
+
+    // Pisahkan input pola: KOMA sebagai pemisah hari (toleran juga ; | dan baris baru)
+    function splitPatternInput(raw){
+        return String(raw==null?'':raw).split(/[,;|\n\r]+/).map(s=>s.trim()).filter(s=>s!=='');
+    }
+
+    // Parse input pola -> { pattern:[nama|''|null], unknown:[token], count }
+    //   ''   = hari dikosongkan
+    //   null = token tidak dikenal (belum ada di Kondisi/Jam Dinas)
+    function parsePatternInput(raw){
+        const pattern = [], unknown = [];
+        splitPatternInput(raw).forEach(t => {
+            if(isEmptyToken(t)){ pattern.push(''); return; }
+            const name = findDinasName(t);
+            if(name){ pattern.push(name); }
+            else { pattern.push(null); if(unknown.indexOf(t) === -1) unknown.push(t); }
+        });
+        return { pattern: pattern, unknown: unknown, count: pattern.length };
+    }
+
+    // Buat jam dinas baru dari nama yang belum dikenal (disisipkan sebelum status tetap)
+    function createDinasNames(names){
+        let insertAt = dinasOrder.length;
+        for(let i=0;i<dinasOrder.length;i++){ if(isFixedDinas(dinasOrder[i])){ insertAt=i; break; } }
+        (names||[]).forEach(nm => {
+            const name = String(nm||'').trim();
+            if(!name || dinasOrder.indexOf(name) !== -1) return;
+            dinasOrder.splice(insertAt, 0, name); insertAt++;
+            if(!shiftTimes[name]) shiftTimes[name] = { start:'', end:'', erp:'' };
+            ensureShiftColor(name);
+        });
+        renderShiftTimes(); renderMatrix();
+    }
+
+    // Render seluruh panel Auto Pola Dinas
+    function renderAutoPatternPanel(){
+        renderPatternPersonOptions();
+        renderPatternQuickChips();
+        renderPatternPreview();
+        renderSavedPatterns();
+        renderPrevPatternButton();
+    }
+
+    // Dropdown nama personil (baris tabel) + opsi "Semua Personil"
+    function renderPatternPersonOptions(){
+        const sel = document.getElementById('patternPerson');
+        if(!sel) return;
+        const prev = sel.value;
+        let html = '<option value="-1">Semua Personil (pola sama)</option>';
+        selectedPersonil.forEach((p,idx)=>{ html += '<option value="'+idx+'">'+esc(p.nama)+'</option>'; });
+        sel.innerHTML = html;
+        sel.disabled = selectedPersonil.length === 0;
+        if(prev !== '' && sel.querySelector('option[value="'+prev+'"]')) sel.value = prev;
+    }
+
+    // Ganti pilihan nama -> tampilkan pola tersimpan milik personil itu
+    function onPatternPersonChange(){
+        const sel = document.getElementById('patternPerson');
+        const inp = document.getElementById('patternInput');
+        const sd  = document.getElementById('patternStartDay');
+        if(!sel || !inp) return;
+        const idx = parseInt(sel.value, 10);
+        const p = (idx >= 0) ? selectedPersonil[idx] : null;
+        const saved = p ? autoPatterns[p.id] : null;
+        if(saved && saved.pattern && saved.pattern.length){
+            inp.value = saved.pattern.map(v => v || '-').join(',');
+            if(sd) sd.value = String(saved.start || 1);
+        } else {
+            inp.value = '';
+        }
+        renderPatternPreview(); renderSavedPatterns();
+    }
+
+    // Chip bantu: klik nama dinas untuk menambahkannya ke input pola
+    function renderPatternQuickChips(){
+        const el = document.getElementById('patternQuickChips');
+        if(!el) return;
+        el.innerHTML = dinasOrder.map((n,idx) => {
+            const cls = getCellClass(n);
+            const style = getCellStyle(n);
+            return '<button type="button" class="btn btn-sm btn-light border py-0 px-2 d-inline-flex align-items-center gap-1" style="font-size:.75rem" title="Tambah '+esc(n)+' ke pola" onclick="appendPatternToken('+idx+')">' +
+                '<span class="legend-box '+cls+'"' + (style?(' style="'+style+'"'):'') + '></span>' + esc(n) +
+            '</button>';
+        }).join('') +
+        '<button type="button" class="btn btn-sm btn-light border py-0 px-2" style="font-size:.75rem" title="Hari dikosongkan" onclick="appendPatternRaw(\'-\')">Kosong (-)</button>' +
+        '<button type="button" class="btn btn-sm btn-light border py-0 px-2" style="font-size:.75rem" title="Tambah koma" onclick="appendPatternRaw(\',\')">,</button>';
+    }
+    function appendPatternRaw(text){
+        const inp = document.getElementById('patternInput');
+        if(!inp) return;
+        let v = inp.value || '';
+        if(text === ','){
+            if(v.trim() !== '' && !/[,;|]$/.test(v.trim())) v = v.trim() + ',';
+        } else {
+            if(v.trim() !== '' && !/[,;|]$/.test(v.trim())) v = v.trim() + ',';
+            v += text;
+        }
+        inp.value = v;
+        if(inp.focus) inp.focus();
+        renderPatternPreview();
+    }
+    function appendPatternToken(idx){
+        const n = dinasOrder[idx];
+        if(!n) return;
+        appendPatternRaw(n);
+    }
+    // Preview pola: Hari 1..N (+ tanggalnya) dan info kelanjutan setelah hari ke-N
+    function renderPatternPreview(){
+        const el = document.getElementById('patternPreview');
+        if(!el) return;
+        const inp = document.getElementById('patternInput');
+        const sd  = document.getElementById('patternStartDay');
+        const now = new Date();
+        const tahun = editorTahun || now.getFullYear();
+        const bulan = editorBulan || (now.getMonth()+1);
+        const total = daysInMonth(tahun, bulan);
+        let startDay = parseInt(sd ? sd.value : 1, 10);
+        if(!startDay || startDay < 1) startDay = 1;
+        if(sd) sd.max = String(total);
+        const parsed = parsePatternInput(inp ? inp.value : '');
+        if(parsed.count === 0){
+            el.innerHTML = '<div class="small text-muted">Ketik status dinas dipisah <b>koma</b> untuk <b>7 hari</b>, contoh: <code>Pagi,Pagi,Malam,Malam,Libur,Libur,Libur</code>. Setelah hari ke-7, hari berikutnya otomatis mengikuti pola (kembali ke hari ke-1, ke-2, dst).</div>';
+            return;
+        }
+        const n = parsed.count;
+        let boxes = '';
+        for(let i=0;i<n;i++){
+            const val = parsed.pattern[i];
+            const dayNum = startDay + i;
+            const d = new Date(tahun, bulan-1, dayNum);
+            const inMonth = dayNum <= total;
+            const dateLabel = DAY_NAMES[d.getDay()] + ' ' + d.getDate() + (inMonth ? '' : ' *');
+            const label = (val === null) ? '?' : (val === '' ? '&mdash;' : esc(val));
+            const cls = (val === null || val === '') ? '' : getCellClass(val);
+            const style = (val === null || val === '') ? '' : getCellStyle(val);
+            boxes += '<div class="text-center" style="min-width:62px">' +
+                '<div class="text-muted" style="font-size:.62rem;line-height:1.15">Hari '+(i+1)+'<br>'+esc(dateLabel)+'</div>' +
+                '<div class="border rounded px-2 py-1 fw-bold '+cls+'" style="font-size:.75rem;'+(style||'')+'">'+label+'</div>' +
+            '</div>';
+        }
+        const filled = Math.max(0, total - startDay + 1);
+        const nextIdx = n ? (filled % n) : 0;
+        const nextVal = parsed.pattern[nextIdx];
+        const nextLabel = (nextVal === null || nextVal === '' || nextVal === undefined) ? 'kosong' : nextVal;
+        let html = '<div class="d-flex flex-wrap gap-1 align-items-end">'+boxes+'</div>';
+        html += '<div class="small text-muted mt-2">Pola <b>'+n+' hari</b> &middot; mulai tgl <b>'+startDay+'</b> &middot; terisi <b>'+filled+' hari</b> (tgl '+startDay+'&ndash;'+total+') &middot; setelah hari ke-'+n+' kembali ke hari ke-1 &middot; bulan berikutnya mulai dari: <b>'+esc(nextLabel)+'</b> (hari ke-'+(nextIdx+1)+' pola).</div>';
+        if(n !== PATTERN_DAYS) html += '<div class="small text-warning"><i class="bi bi-exclamation-triangle"></i> Pola berisi <b>'+n+' hari</b> (disarankan 7 hari). Pola tetap berulang setiap '+n+' hari.</div>';
+        if(parsed.unknown.length) html += '<div class="small text-danger"><i class="bi bi-x-octagon"></i> Status belum dikenal: <b>'+parsed.unknown.map(esc).join(', ')+'</b> &mdash; akan ditawarkan dibuat otomatis saat "Terapkan Pola".</div>';
+        if(startDay > total) html += '<div class="small text-danger"><i class="bi bi-x-octagon"></i> Tanggal mulai melebihi jumlah hari bulan ini ('+total+' hari).</div>';
+        if((startDay + n - 1) > total) html += '<div class="small text-muted">* tanggal masuk bulan berikutnya (tidak diisi pada periode ini).</div>';
+        el.innerHTML = html;
+    }
+
+    // Pesan status kecil di dalam panel (bukan alert)
+    function showPatternMsg(text, kind){
+        const el = document.getElementById('patternMsg');
+        if(!el) return;
+        el.className = 'small mt-2 text-' + (kind || 'muted');
+        el.innerHTML = esc(text);
+        if(showPatternMsg._t) clearTimeout(showPatternMsg._t);
+        if(kind === 'success'){
+            showPatternMsg._t = setTimeout(function(){ el.innerHTML = ''; }, 12000);
+        }
+    }
+    // Daftar pola yang sudah disimpan per personil (bisa diterapkan ulang / dihapus)
+    function renderSavedPatterns(){
+        const el = document.getElementById('patternSavedList');
+        if(!el) return;
+        const items = [];
+        selectedPersonil.forEach((p,idx)=>{
+            const ap = autoPatterns[p.id];
+            if(ap && ap.pattern && ap.pattern.length) items.push({ p:p, idx:idx, ap:ap });
+        });
+        if(items.length === 0){ el.innerHTML = ''; return; }
+        el.innerHTML = '<div class="small fw-bold mb-1"><i class="bi bi-bookmark-check"></i> Pola tersimpan:</div>' +
+            items.map(it => {
+                const chips = it.ap.pattern.map(v => {
+                    const cls = v ? getCellClass(v) : '';
+                    const style = v ? getCellStyle(v) : '';
+                    return '<span class="border rounded px-1 '+cls+'" style="font-size:.7rem;'+(style||'')+'">'+esc(v || '&mdash;')+'</span>';
+                }).join(' ');
+                return '<div class="d-flex flex-wrap align-items-center gap-2 border rounded px-2 py-1 mb-1 bg-white">' +
+                    '<span class="small fw-bold">'+esc(it.p.nama)+'</span>' +
+                    '<span class="small text-muted">mulai tgl '+it.ap.start+' &middot; pola '+it.ap.pattern.length+' hari</span>' +
+                    '<span class="d-flex flex-wrap gap-1">'+chips+'</span>' +
+                    '<button type="button" class="btn btn-sm btn-outline-primary py-0 px-2 ms-auto" title="Terapkan lagi pola ini" onclick="reapplyPattern('+it.idx+')"><i class="bi bi-arrow-repeat"></i> Terapkan lagi</button>' +
+                    '<button type="button" class="btn btn-sm btn-outline-danger py-0 px-1" title="Hapus pola tersimpan" onclick="removeSavedPattern('+it.idx+')"><i class="bi bi-x-lg"></i></button>' +
+                '</div>';
+            }).join('');
+    }
+
+    // Isi matriks satu personil: pola diulang (siklus) dari tgl mulai sampai akhir bulan.
+    // Hari ke-(n+1) otomatis kembali ke hari ke-1 pola, dst.
+    function fillPatternForPerson(pid, pattern, startDay, total){
+        let c = 0;
+        for(let d=startDay; d<=total; d++){
+            setCell(pid, d, pattern[c % pattern.length] || '');
+            c++;
+        }
+        return c;
+    }
+
+    // Terapkan pola dari kolom input ke personil terpilih (atau semua personil)
+    function applyAutoPattern(){
+        if(!editorBulan || !editorTahun){ alert('Periode belum dipilih.'); return; }
+        if(selectedPersonil.length === 0){ alert('Tambahkan minimal satu personil dulu (klik + pada "Personil Tersedia").'); return; }
+        const inp = document.getElementById('patternInput');
+        const raw = inp ? inp.value : '';
+        const parsed = parsePatternInput(raw);
+        if(parsed.count === 0){
+            showPatternMsg('Ketik dulu status dinas untuk 7 hari, pisahkan dengan koma. Contoh: Pagi,Pagi,Malam,Malam,Libur,Libur,Libur','danger');
+            alert('Ketik status dinas untuk pola 7 hari, pisahkan dengan koma.\nContoh: Pagi,Pagi,Malam,Malam,Libur,Libur,Libur');
+            return;
+        }
+        // Status yang belum ada di Kondisi/Jam Dinas -> tawarkan dibuat otomatis
+        if(parsed.unknown.length){
+            const ok = confirm('Status berikut belum ada di daftar Kondisi/Jam Dinas:\n\n   ' + parsed.unknown.join(', ') +
+                '\n\nBuat sebagai jam dinas baru dengan nama tersebut?\n(Jam-nya bisa diatur setelahnya di "Kondisi / Jam Dinas")\n\nKlik "Batal" untuk memperbaiki ketikan.');
+            if(!ok){ showPatternMsg('Penerapan pola dibatalkan. Perbaiki nama status, atau tambah jam dinas baru lewat tombol "+ Tambah Jam Dinas".','danger'); return; }
+            createDinasNames(parsed.unknown);
+            const re = parsePatternInput(raw);
+            if(re.unknown.length){ showPatternMsg('Masih ada status tidak dikenal: ' + re.unknown.join(', '),'danger'); return; }
+            parsed.pattern = re.pattern;
+        }
+        const total = daysInMonth(editorTahun, editorBulan);
+        const sd = document.getElementById('patternStartDay');
+        let startDay = parseInt(sd ? sd.value : 1, 10);
+        if(!startDay || startDay < 1) startDay = 1;
+        if(startDay > total){ alert('Tanggal mulai tidak valid untuk periode ini (maksimal ' + total + ').'); return; }
+        const sel = document.getElementById('patternPerson');
+        const target = sel ? sel.value : '-1';
+        const idxs = (target === '-1') ? selectedPersonil.map((_,i)=>i) : [parseInt(target,10)];
+        const pattern = parsed.pattern.map(v => (v === null ? '' : v));
+        let applied = 0;
+        idxs.forEach(i => {
+            const p = selectedPersonil[i];
+            if(!p) return;
+            fillPatternForPerson(p.id, pattern, startDay, total);
+            autoPatterns[p.id] = { start: startDay, pattern: pattern.slice() };
+            applied++;
+        });
+        if(applied === 0){ showPatternMsg('Personil tidak ditemukan. Pilih nama personil yang ada di baris tabel.','danger'); return; }
+        renderMatrix(); renderSavedPatterns(); renderPatternPreview();
+        const filled = Math.max(0, total - startDay + 1);
+        const nextIdx = filled % pattern.length;
+        showPatternMsg('Pola ' + pattern.length + ' hari diterapkan untuk ' + applied + ' personil mulai tgl ' + startDay +
+            ' (terisi ' + filled + ' hari, tgl ' + startDay + '-' + total + '). Setelah hari ke-' + pattern.length +
+            ' otomatis kembali ke hari ke-1. Bulan berikutnya lanjut: ' + (pattern[nextIdx] || 'kosong') + '.', 'success');
+    }
+    // Terapkan ulang pola tersimpan milik satu personil
+    function reapplyPattern(idx){
+        const p = selectedPersonil[idx];
+        if(!p) return;
+        const ap = autoPatterns[p.id];
+        if(!ap || !ap.pattern || !ap.pattern.length) return;
+        const total = daysInMonth(editorTahun, editorBulan);
+        const start = Math.min(Math.max(1, ap.start || 1), total);
+        fillPatternForPerson(p.id, ap.pattern, start, total);
+        renderMatrix();
+        showPatternMsg('Pola ' + p.nama + ' diterapkan lagi mulai tgl ' + start + '.', 'success');
+    }
+
+    // Hapus pola tersimpan (isi matriks tidak diubah)
+    function removeSavedPattern(idx){
+        const p = selectedPersonil[idx];
+        if(!p) return;
+        delete autoPatterns[p.id];
+        renderSavedPatterns();
+        const sel = document.getElementById('patternPerson');
+        if(sel && sel.value === String(idx)) onPatternPersonChange();
+        showPatternMsg('Pola tersimpan untuk ' + p.nama + ' dihapus (isi matriks tidak berubah).', 'muted');
+    }
+
+    // Hapus pola tersimpan untuk personil yang sedang dipilih di dropdown (atau semua)
+    function clearPatternPerson(){
+        const sel = document.getElementById('patternPerson');
+        const idx = sel ? parseInt(sel.value, 10) : -1;
+        const idxs = (idx === -1) ? selectedPersonil.map((_,i)=>i) : [idx];
+        const targets = idxs.map(i=>selectedPersonil[i]).filter(p=>p && autoPatterns[p.id]);
+        if(targets.length === 0){
+            showPatternMsg('Tidak ada pola tersimpan untuk dihapus.', 'muted');
+            resetPatternInput();
+            return;
+        }
+        if(!confirm('Hapus pola tersimpan untuk:\n\n   ' + targets.map(p=>p.nama).join('\n   ') + '\n\nIsi matriks yang sudah terisi tidak diubah.')) return;
+        targets.forEach(p=>{ delete autoPatterns[p.id]; });
+        renderSavedPatterns();
+        onPatternPersonChange();
+        showPatternMsg('Pola tersimpan dihapus untuk ' + targets.length + ' personil (isi matriks tidak berubah).', 'muted');
+    }
+
+    function resetPatternInput(){
+        const inp = document.getElementById('patternInput');
+        if(inp) inp.value = '';
+        renderPatternPreview();
+    }
+
+    // Reset seluruh form pola (dipakai saat membuka jadwal baru / ganti periode)
+    function resetPatternForm(){
+        const inp = document.getElementById('patternInput');
+        const sd  = document.getElementById('patternStartDay');
+        if(inp) inp.value = '';
+        if(sd) sd.value = '1';
+        showPatternMsg('', 'muted');
+        renderSavedPatterns();
+        renderPrevPatternButton();
+    }
+
+    // ===== Lanjut pola antar bulan (sisa pola bulan sebelumnya digeser ke bulan ini) =====
+    async function fetchPrevMonthPatterns(){
+        prevMonthPatterns = null;
+        renderPrevPatternButton();
+        if(!editorBulan || !editorTahun || !sb || !sb.from) return;
+        let pb = editorBulan - 1, py = editorTahun;
+        if(pb < 1){ pb = 12; py--; }
+        try{
+            const { data, error } = await sb.from('jadwal_dinas')
+                .select('bulan,tahun,auto_patterns')
+                .eq('bulan', pb).eq('tahun', py)
+                .maybeSingle();
+            if(!error && data && data.auto_patterns && Object.keys(data.auto_patterns).length){
+                prevMonthPatterns = { bulan: data.bulan, tahun: data.tahun, patterns: data.auto_patterns };
+            }
+        }catch(e){ prevMonthPatterns = null; }
+        renderPrevPatternButton();
+    }
+    function renderPrevPatternButton(){
+        const btn = document.getElementById('btnPrevPattern');
+        if(!btn) return;
+        if(!prevMonthPatterns){ btn.classList.add('hidden'); btn.innerHTML = ''; return; }
+        btn.classList.remove('hidden');
+        btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Lanjutkan Pola ' + MONTH_NAMES[prevMonthPatterns.bulan-1] + ' ' + prevMonthPatterns.tahun;
+    }
+    // Geser urutan pola mengikuti sisa pola bulan lalu, isi dari tgl 1 bulan ini
+    function continuePrevPatterns(){
+        if(!prevMonthPatterns) return;
+        if(selectedPersonil.length === 0){ alert('Tambahkan minimal satu personil dulu.'); return; }
+        const pats = prevMonthPatterns.patterns || {};
+        const totalPrev = daysInMonth(prevMonthPatterns.tahun, prevMonthPatterns.bulan);
+        const totalNow = daysInMonth(editorTahun, editorBulan);
+        let n = 0;
+        selectedPersonil.forEach(p => {
+            const ap = pats[p.id];
+            if(!ap || !ap.pattern || !ap.pattern.length) return;
+            const start = Math.min(Math.max(1, ap.start || 1), totalPrev);
+            const filled = Math.max(0, totalPrev - start + 1);
+            const off = filled % ap.pattern.length;
+            const rotated = ap.pattern.slice(off).concat(ap.pattern.slice(0, off));
+            autoPatterns[p.id] = { start: 1, pattern: rotated };
+            fillPatternForPerson(p.id, rotated, 1, totalNow);
+            n++;
+        });
+        renderMatrix(); renderSavedPatterns(); onPatternPersonChange();
+        showPatternMsg(n
+            ? ('Pola ' + n + ' personil dilanjutkan dari ' + MONTH_NAMES[prevMonthPatterns.bulan-1] + ' ' + prevMonthPatterns.tahun + ' (diisi dari tgl 1, urutan digeser mengikuti sisa pola bulan lalu).')
+            : ('Tidak ada personil pada tabel ini yang punya pola tersimpan di ' + MONTH_NAMES[prevMonthPatterns.bulan-1] + ' ' + prevMonthPatterns.tahun + '.'), n ? 'success' : 'muted');
+    }
+
+
+
+
+    // ===== Sidebar (dinamis, sama seperti halaman lain) =====
+    function toggleSidebar(){ const s=document.getElementById('sidebar'); if(!s)return; s.classList.toggle('collapsed'); updateSidebarToggleIcon(); }
+    function initSidebar(){ const s=document.getElementById('sidebar'); if(!s)return; let st='collapsed'; try{const v=localStorage.getItem('amcSidebarState'); if(v==='expanded'||v==='collapsed')st=v;}catch(e){} s.classList.toggle('collapsed',st==='collapsed'); updateSidebarToggleIcon(); }
+    function updateSidebarToggleIcon(){ const s=document.getElementById('sidebar'); const ic=document.querySelector('.sidebar-toggle-btn i'); if(!s||!ic)return; const c=s.classList.contains('collapsed'); ic.className=c?'bi bi-chevron-double-right':'bi bi-chevron-double-left'; try{localStorage.setItem('amcSidebarState',c?'collapsed':'expanded');}catch(e){} }
+    function setActiveMenu(el){ document.querySelectorAll('#sidebar ul li a').forEach(l=>l.classList.remove('active')); if(el) el.classList.add('active'); }
+
+    // ===== Proteksi sesi (sama pola dengan halaman lain) =====
+    async function checkAuth(){ try{ const { data:{ session } } = await sb.auth.getSession(); if(!session) window.location.href='index.html'; }catch(e){ window.location.href='index.html'; } }
+
+    // ===== Navigasi antar section =====
+    function showList(){
+        document.getElementById('listPage').classList.remove('hidden');
+        document.getElementById('paramPage').classList.add('hidden');
+        document.getElementById('editorPage').classList.add('hidden');
+        document.body.classList.remove('form-open');
+        loadJadwal();
+    }
+    function goToParam(){
+        editingId=null; editorBulan=null; editorTahun=null; selectedPersonil=[]; dataDinas={};
+        shiftTimes = cloneDefaults();
+        dinasOrder = DEFAULT_DINAS_ORDER.slice();
+        shiftColors = {};
+        autoPatterns = {};
+        prevMonthPatterns = null;
+        resetPatternForm();
+        document.getElementById('listPage').classList.add('hidden');
+        document.getElementById('paramPage').classList.remove('hidden');
+        document.getElementById('editorPage').classList.add('hidden');
+        document.body.classList.add('form-open');
+        const d=new Date();
+        document.getElementById('paramBulan').value=String(d.getMonth()+1);
+        document.getElementById('paramTahun').value=String(d.getFullYear());
+    }
+
+    // ===== LIST PAGE: load daftar jadwal dinas =====
+    async function loadJadwal(){
+        const tbody=document.getElementById('jadwalTableBody');
+        tbody.innerHTML='<tr><td colspan="3" class="text-center py-4">Memuat data...</td></tr>';
+        const { data, error } = await sb.from('jadwal_dinas').select('*').order('tahun',{ascending:false}).order('bulan',{ascending:false});
+        if(error){ tbody.innerHTML='<tr><td colspan="3" class="text-center text-danger py-4">Gagal memuat: '+esc(error.message)+'</td></tr>'; return; }
+        const rows=data||[];
+        if(rows.length===0){ tbody.innerHTML='<tr><td colspan="3" class="text-center text-muted py-4">Belum ada jadwal dinas. Klik "Buat Jadwal Baru" untuk memulai.</td></tr>'; return; }
+        tbody.innerHTML='';
+        rows.forEach(r=>{
+            const badge = r.status==='Final' ? '<span class="badge bg-success">Final</span>' : '<span class="badge bg-warning text-dark">Draft</span>';
+            tbody.innerHTML +=
+                '<tr>' +
+                    '<td class="ps-4 fw-bold">'+MONTH_NAMES[(r.bulan-1)]+' '+r.tahun+'</td>' +
+                    '<td>'+badge+'</td>' +
+                    '<td class="text-center no-print">' +
+                        '<button class="btn btn-sm btn-outline-primary me-1" title="Edit" onclick="editJadwal(\''+r.id+'\')"><i class="bi bi-pencil"></i></button>' +
+                        '<button class="btn btn-sm btn-outline-success me-1" title="Download Excel" onclick="downloadExcel(\''+r.id+'\')"><i class="bi bi-file-earmark-spreadsheet"></i></button>' +
+                        '<button class="btn btn-sm btn-outline-info me-1" title="Download Excel Kode ERP (tabulasi untuk ERP)" onclick="downloadExcelERP(\''+r.id+'\')"><i class="bi bi-grid-3x3-gap-fill"></i></button>' +
+                        '<button class="btn btn-sm btn-outline-warning me-1" title="Download JPG (A4 Landscape) — tabel berwarna sesuai Kondisi/Jam Dinas" onclick="downloadJPG(\''+r.id+'\')"><i class="bi bi-image"></i></button>' +
+                        '<button class="btn btn-sm btn-outline-danger" title="Hapus" onclick="deleteJadwal(\''+r.id+'\')"><i class="bi bi-trash"></i></button>' +
+                    '</td>' +
+                '</tr>';
+        });
+    }
+
+    async function deleteJadwal(id){
+        if(!confirm('Hapus jadwal dinas ini? Tindakan ini permanen.')) return;
+        const { error } = await sb.from('jadwal_dinas').delete().eq('id', id);
+        if(error) alert('Gagal hapus: '+error.message);
+        else loadJadwal();
+    }
+
+    // Expose logout fallback jika logic.js belum siap
+    if(typeof window.logout === 'undefined'){
+        window.logout = async function(){
+            if(!confirm('Apakah Anda yakin ingin keluar dari sistem?')) return false;
+            try{ sessionStorage.clear(); localStorage.clear(); if(sb&&sb.auth) await sb.auth.signOut(); }catch(e){}
+            window.location.href='index.html'; return true;
+        };
+    }
+</script>
+<script>
+    // ===== Parameter -> Editor =====
+    function goToEditor(){
+        const b=parseInt(document.getElementById('paramBulan').value,10);
+        const t=parseInt(document.getElementById('paramTahun').value,10);
+        if(!b||!t){ alert('Pilih bulan dan tahun terlebih dahulu.'); return; }
+        editorBulan=b; editorTahun=t;
+        autoPatterns={}; prevMonthPatterns=null;
+        document.getElementById('paramPage').classList.add('hidden');
+        document.getElementById('editorPage').classList.remove('hidden');
+        document.getElementById('editorPeriode').innerText=MONTH_NAMES[b-1]+' '+t;
+        renderShiftTimes();
+        loadAvailablePersonil();
+        renderMatrix();
+        renderPersonilPanels();
+        resetPatternForm();
+        renderAutoPatternPanel();
+        fetchPrevMonthPatterns();   // tawarkan lanjut pola bulan sebelumnya (bila ada)
+    }
+
+    // ===== Edit jadwal existing -> langsung ke Editor =====
+    async function editJadwal(id){
+        const { data, error } = await sb.from('jadwal_dinas').select('*').eq('id', id).single();
+        if(error || !data){ alert('Gagal memuat jadwal.'); return; }
+        editingId=data.id; editorBulan=data.bulan; editorTahun=data.tahun;
+        selectedPersonil=(data.personil||[]).map(p=>({ id:p.id, nama:p.nama, jabatan:p.jabatan }));
+        dataDinas=data.data_dinas||{};
+        // Muat kondisi jam dinas (gabung default + data tersimpan)
+        shiftTimes = Object.assign(cloneDefaults(), data.shift_times||{});
+        dinasOrder = (data.dinas_order && data.dinas_order.length) ? data.dinas_order.slice() : DEFAULT_DINAS_ORDER.slice();
+        shiftColors = data.shift_colors || {};
+        autoPatterns = data.auto_patterns || {};   // pola 7 hari per personil (bila kolomnya sudah ada)
+        prevMonthPatterns = null;
+        // pastikan semua dinas punya entri shiftTimes (dengan kode ERP bila belum ada) & warna
+        dinasOrder.forEach(n => {
+            if(!shiftTimes[n]) shiftTimes[n] = Object.assign({}, DEFAULT_SHIFT_TIMES[n] || { start:'', end:'', erp:'' });
+            if(shiftTimes[n].erp === undefined) shiftTimes[n].erp = (DEFAULT_SHIFT_TIMES[n] && DEFAULT_SHIFT_TIMES[n].erp) || '';
+            ensureShiftColor(n);
+        });
+        // pastikan status tetap selalu ada
+        FIXED_DINAS.forEach(n => { if(dinasOrder.indexOf(n) === -1) dinasOrder.push(n); });
+        document.getElementById('paramPage').classList.add('hidden');
+        document.getElementById('listPage').classList.add('hidden');
+        document.getElementById('editorPage').classList.remove('hidden');
+        document.body.classList.add('form-open');
+        document.getElementById('editorPeriode').innerText=MONTH_NAMES[(editorBulan-1)]+' '+editorTahun;
+        renderShiftTimes();
+        await loadAvailablePersonil();
+        renderMatrix(); renderPersonilPanels();
+        resetPatternForm();
+        renderAutoPatternPanel();
+        fetchPrevMonthPatterns();
+    }
+
+    // ===== Panel personil (kiri) =====
+    async function loadAvailablePersonil(){
+        try{
+            const { data } = await sb.from('personil')
+                .select('id,nama_lengkap,jabatan,role,status')
+                .eq('status','Aktif')
+                .order('nama_lengkap',{ascending:true});
+            availablePersonil=(data||[]).map(p=>({ id:p.id, nama:p.nama_lengkap, jabatan:p.jabatan, role:p.role }));
+        }catch(e){ availablePersonil=[]; }
+        renderPersonilPanels();
+    }
+
+    function renderPersonilPanels(){
+        const availEl=document.getElementById('availableList');
+        const selectedIds=new Set(selectedPersonil.map(p=>p.id));
+        const avail=availablePersonil.filter(p=>!selectedIds.has(p.id));
+        if(avail.length===0){
+            availEl.innerHTML='<div class="text-muted small p-2">Tidak ada personil tersedia. Pastikan data Master Personil sudah terisi & aktif.</div>';
+        } else {
+            availEl.innerHTML = avail.map(p =>
+                '<div class="person-item">' +
+                    '<div><div class="person-name">'+esc(p.nama)+'</div><div class="person-role">'+esc(p.jabatan||p.role||'')+'</div></div>' +
+                    '<button class="btn btn-sm btn-outline-primary py-0 px-2" title="Tambah baris" onclick="addPersonRow(\''+p.id+'\')"><i class="bi bi-plus"></i></button>' +
+                '</div>'
+            ).join('');
+        }
+        const cntEl=document.getElementById('selectedCount');
+        if(cntEl) cntEl.innerText=selectedPersonil.length+' personil';
+    }
+
+    function addPersonRow(pid){
+        const p=availablePersonil.find(x=>x.id===pid);
+        if(!p) return;
+        if(selectedPersonil.some(x=>x.id===pid)) return;
+        selectedPersonil.push(p);
+        renderPersonilPanels(); renderMatrix();
+    }
+
+    function removePersonRow(idx){
+        const p=selectedPersonil[idx];
+        if(!p) return;
+        selectedPersonil.splice(idx,1);
+        // dataDinas untuk personil ini dipertahankan (bisa dikembalikan jika ditambah lagi)
+        renderPersonilPanels(); renderMatrix();
+    }
+</script>
+<script>
+    // ===== Matriks kalender dinas =====
+    function getCell(pid, day){ return (dataDinas[pid] && dataDinas[pid][day]) || ''; }
+    function setCell(pid, day, val){ if(!dataDinas[pid]) dataDinas[pid]={}; dataDinas[pid][day]=val; }
+
+    function renderMatrix(){
+        const total=daysInMonth(editorTahun, editorBulan);
+        let hdDays='<th class="col-name" rowspan="2">Personil / Tanggal</th>';
+        let hdDates='';
+        for(let i=1;i<=total;i++){
+            const d=new Date(editorTahun, editorBulan-1, i);
+            const weekend=(d.getDay()===0||d.getDay()===6)?' class="weekend"':'';
+            hdDays+='<th'+weekend+'>'+DAY_NAMES[d.getDay()]+'</th>';
+            hdDates+='<th'+weekend+'>'+i+'</th>';
+        }
+        document.getElementById('matrixHeaderDays').innerHTML=hdDays;
+        document.getElementById('matrixHeaderDates').innerHTML=hdDates;
+
+        let body='';
+        selectedPersonil.forEach((p,idx)=>{
+            body+='<tr><td class="col-name"><div class="d-flex align-items-center justify-content-between">'+
+                    '<div><div class="fw-bold">'+esc(p.nama)+'</div><small class="text-muted">'+esc(p.jabatan||'')+'</small></div>'+
+                    '<button class="btn btn-sm btn-outline-danger py-0 px-1" title="Hapus baris" onclick="removePersonRow('+idx+')"><i class="bi bi-dash"></i></button>'+
+                  '</div></td>';
+            for(let day=1;day<=total;day++){
+                const shift=getCell(p.id, day);
+                const title = shift ? esc(getShiftLabel(shift)) : '';
+                const cls = getCellClass(shift);
+                const style = getCellStyle(shift);
+                body+='<td class="'+cls+'" style="'+style+'" title="'+title+'" onclick="toggleCell('+idx+', '+day+')">'+esc(shift)+'</td>';
+            }
+            body+='</tr>';
+        });
+        if(selectedPersonil.length===0){
+            body='<tr><td class="text-center text-muted py-3" style="min-width:auto">Belum ada personil. Tambahkan dari daftar di sisi kiri.</td></tr>';
+        }
+        document.getElementById('matrixBody').innerHTML=body;
+
+        const sel=document.getElementById('bulkPerson');
+        if(sel){
+            sel.innerHTML='<option value="-1">Semua Personil</option>';
+            selectedPersonil.forEach((p,idx)=>{ sel.innerHTML+='<option value="'+idx+'">'+esc(p.nama)+'</option>'; });
+        }
+        renderPatternPersonOptions();   // dropdown nama pada panel Auto Pola Dinas
+    }
+
+    function toggleCell(idx, day){
+        const p=selectedPersonil[idx]; if(!p) return;
+        const cur=getCell(p.id, day);
+        let next='';
+        if(!cur){
+            next = dinasOrder[0] || '';
+        } else {
+            const i = dinasOrder.indexOf(cur);
+            if(i === -1) next = dinasOrder[0] || '';          // nilai lama tidak dikenal -> mulai dari awal
+            else if(i + 1 < dinasOrder.length) next = dinasOrder[i+1];
+            else next = '';                                    // sampai akhir -> kosong
+        }
+        setCell(p.id, day, next);
+        renderMatrix();
+    }
+
+    // ===== Bulk tools =====
+    function bulkSetAll(val){
+        const target=document.getElementById('bulkPerson').value;
+        const total=daysInMonth(editorTahun, editorBulan);
+        const loop=(idx)=>{ const p=selectedPersonil[idx]; if(!p)return; for(let d=1;d<=total;d++) setCell(p.id,d,val); };
+        if(target==='-1'){ selectedPersonil.forEach((_,i)=>loop(i)); } else { loop(parseInt(target,10)); }
+        renderMatrix();
+    }
+    function bulkClear(){ if(!confirm('Kosongkan semua sel dinas?')) return; dataDinas={}; renderMatrix(); }
+    // Catatan: auto pola dinas (pola 7 hari per personil) dipindah ke panel tersendiri
+    // -> lihat applyAutoPattern() di bagian "Auto Pola Dinas".
+</script>
+<script>
+    // ===== Simpan (Draft / Final) =====
+    async function saveJadwal(status){
+        if(!editorBulan||!editorTahun){ alert('Periode belum dipilih.'); return; }
+        if(selectedPersonil.length===0){ alert('Tambahkan minimal satu personil sebelum menyimpan.'); return; }
+        const payload={
+            bulan: editorBulan,
+            tahun: editorTahun,
+            status: status,
+            personil: selectedPersonil.map(p=>({ id:p.id, nama:p.nama, jabatan:p.jabatan })),
+            data_dinas: dataDinas,
+            dinas_order: dinasOrder,
+            shift_times: shiftTimes,
+            shift_colors: shiftColors,
+            auto_patterns: autoPatterns   // pola 7 hari per personil { id: { start, pattern } }
+        };
+        // Simpan; bila kolom auto_patterns belum ada di tabel, ulangi tanpa kolom itu
+        // agar jadwal tetap tersimpan (lihat ALTER di SETUP-JADWAL-DINAS.md).
+        const kirim = async (pl) => {
+            if(editingId){
+                return await sb.from('jadwal_dinas').update(pl).eq('id', editingId);
+            }
+            const r = await sb.from('jadwal_dinas').insert([pl]).select();
+            if(!r.error && r.data && r.data[0]) editingId = r.data[0].id;
+            return r;
+        };
+        let res = await kirim(payload);
+        let err = res.error;
+        let polaNotSaved = false;
+        if(err && isMissingColumnError(err, 'auto_patterns')){
+            const pl2 = Object.assign({}, payload);
+            delete pl2.auto_patterns;
+            res = await kirim(pl2);
+            err = res.error;
+            polaNotSaved = true;
+        }
+        if(err){ alert('Gagal menyimpan: '+err.message); return; }
+        alert('Jadwal berhasil disimpan sebagai '+status+'.' + (polaNotSaved
+            ? '\n\nCatatan: kolom "auto_patterns" belum ada di tabel jadwal_dinas, jadi pola 7 hari tidak ikut tersimpan. Jalankan ALTER pada SETUP-JADWAL-DINAS.md agar pola ikut tersimpan.'
+            : ''));
+        showList();
+    }
+
+    // ===== Download Excel (SheetJS) =====
+    async function downloadExcel(id){
+        const { data, error } = await sb.from('jadwal_dinas').select('*').eq('id', id).single();
+        if(error || !data){ alert('Gagal memuat data untuk Excel.'); return; }
+        const total=daysInMonth(data.tahun, data.bulan);
+        const header=['No','Nama','Jabatan']; for(let d=1;d<=total;d++) header.push(String(d));
+        const aoa=[header, [MONTH_NAMES[data.bulan-1]+' '+data.tahun, '', '']];
+        (data.personil||[]).forEach((p,i)=>{
+            const row=[i+1, p.nama, p.jabatan||''];
+            const dd=(data.data_dinas && data.data_dinas[p.id])||{};
+            for(let d=1;d<=total;d++) row.push(dd[d]||'');
+            aoa.push(row);
+        });
+        const ws=XLSX.utils.aoa_to_sheet(aoa);
+        const wb=XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Jadwal Dinas');
+
+        // Sheet kedua: Kondisi / Jam Dinas (dinamis sesuai dinas_order tersimpan)
+        const st = Object.assign(cloneDefaults(), data.shift_times||{});
+        const order = (data.dinas_order && data.dinas_order.length) ? data.dinas_order : DEFAULT_DINAS_ORDER;
+        const stAoa=[['Status Dinas','Kode ERP','Jam Mulai','Jam Selesai','Keterangan']];
+        order.forEach(s=>{
+            const t = st[s] || { start:'', end:'', erp:'' };
+            const keterangan = (t.start||t.end) ? (s+' ('+(t.start||'--:--')+' s/d '+(t.end||'--:--')+')') : s;
+            stAoa.push([s, t.erp||'', t.start||'', t.end||'', keterangan]);
+        });
+        const ws2=XLSX.utils.aoa_to_sheet(stAoa);
+        XLSX.utils.book_append_sheet(wb, ws2, 'Kondisi Jam Dinas');
+
+        // Sheet ketiga: Auto Pola Dinas (pola 7 hari per personil, bila ada)
+        const aps = data.auto_patterns || {};
+        const pRows = (data.personil||[]).filter(p => aps[p.id] && aps[p.id].pattern && aps[p.id].pattern.length);
+        if(pRows.length){
+            const pAoa=[['No','Nama','Jabatan','Tgl Mulai','Jumlah Hari Pola','Pola (hari 1..N)','Lanjut Bulan Berikutnya']];
+            pRows.forEach((p,i)=>{
+                const ap = aps[p.id];
+                const pat = ap.pattern || [];
+                const start = ap.start || 1;
+                const filled = Math.max(0, total - start + 1);
+                const nextIdx = pat.length ? (filled % pat.length) : 0;
+                pAoa.push([
+                    i+1, p.nama, p.jabatan||'', start, pat.length,
+                    pat.map(v=>v||'-').join(', '),
+                    pat.length ? (pat[nextIdx] || '-') : '-'
+                ]);
+            });
+            const ws3=XLSX.utils.aoa_to_sheet(pAoa);
+            XLSX.utils.book_append_sheet(wb, ws3, 'Auto Pola Dinas');
+        }
+
+        XLSX.writeFile(wb, 'Jadwal_Dinas_'+MONTH_NAMES[data.bulan-1]+'_'+data.tahun+'.xlsx');
+    }
+
+    // ===== Download Excel KHUSUS KODE ERP (tabulasi untuk sistem ERP) =====
+    // Sheet "Kode ERP": matriks No|Nama|Jabatan|Tanggal 1..N — setiap sel berisi
+    // KODE ERP dari status dinas personil pada tanggal tersebut (mengikuti
+    // kondisi/kode ERP yang diatur di "Kondisi / Jam Dinas").
+    async function downloadExcelERP(id){
+        const { data, error } = await sb.from('jadwal_dinas').select('*').eq('id', id).single();
+        if(error || !data){ alert('Gagal memuat data untuk Excel Kode ERP.'); return; }
+        const total=daysInMonth(data.tahun, data.bulan);
+        // Muat kondisi jam dinas (gabung default + tersimpan) untuk mapping status -> kode ERP
+        const st = Object.assign(cloneDefaults(), data.shift_times||{});
+        const erpOf = function(shift){
+            const t = st[shift];
+            return (t && t.erp) ? t.erp : '';
+        };
+        // Sheet 1: matriks kode ERP (baris = personil, kolom = tanggal)
+        const header=['No','Nama','Jabatan']; for(let d=1;d<=total;d++) header.push(String(d));
+        const aoa=[header];
+        (data.personil||[]).forEach((p,i)=>{
+            const row=[i+1, p.nama, p.jabatan||''];
+            const dd=(data.data_dinas && data.data_dinas[p.id])||{};
+            for(let d=1;d<=total;d++) row.push(erpOf(dd[d]||''));
+            aoa.push(row);
+        });
+        const wb=XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), 'Kode ERP');
+
+        // Sheet 2: referensi kode ERP (status dinas -> kode ERP + jam)
+        const order = (data.dinas_order && data.dinas_order.length) ? data.dinas_order : DEFAULT_DINAS_ORDER;
+        const stAoa=[['Status Dinas','Kode ERP','Jam Mulai','Jam Selesai','Periode']];
+        order.forEach(s=>{
+            const t = st[s] || { start:'', end:'', erp:'' };
+            stAoa.push([s, t.erp||'', t.start||'', t.end||'', MONTH_NAMES[data.bulan-1]+' '+data.tahun]);
+        });
+        const ws2=XLSX.utils.aoa_to_sheet(stAoa);
+        ws2['!cols']=[{wch:16},{wch:12},{wch:12},{wch:12},{wch:16}];
+        XLSX.utils.book_append_sheet(wb, ws2, 'Referensi Kode ERP');
+
+        XLSX.writeFile(wb, 'Jadwal_Dinas_'+MONTH_NAMES[data.bulan-1]+'_'+data.tahun+'_KodeERP.xlsx');
+    }
+
+    // ===== Download JPG (A4 LANDSCAPE) — tabel berwarna sesuai Kondisi / Jam Dinas =====
+    async function downloadJPG(id){
+        const { data, error } = await sb.from('jadwal_dinas').select('*').eq('id', id).single();
+        if(error || !data){ alert('Gagal memuat data untuk JPG.'); return; }
+        if(!window.html2canvas){ alert('Library html2canvas belum termuat. Periksa koneksi internet lalu muat ulang halaman.'); return; }
+
+        const total=daysInMonth(data.tahun, data.bulan);
+        const st = Object.assign(cloneDefaults(), data.shift_times||{});
+        const order = (data.dinas_order && data.dinas_order.length) ? data.dinas_order : DEFAULT_DINAS_ORDER;
+        const colors = data.shift_colors||{};
+        // Mapping status -> warna latar & warna teks (tanpa CSS class supaya html2canvas tidak bergantung pada klas di halaman)
+        const knownBg  = { Pagi:'#cce5ff', Malam:'#b8daff', Libur:'#f8d7da', Cuti:'#fff3cd', SPJ:'#d1ecf1', DIK:'#d4edda', RFS:'#e2e3e5' };
+        const knownTxt = { Pagi:'#004085', Malam:'#004085', Libur:'#721c24', Cuti:'#856404', SPJ:'#0c5460', DIK:'#155724', RFS:'#383d41' };
+        const getColor = function(shift){
+            return { bg: knownBg[shift] || colors[shift] || '#ffffff', color: knownTxt[shift] || '#333333' };
+        };
+        // Lebar halaman A4 landscape (96dpi) dan lebar kolom tanggal agar muat
+        const boxW = 1123, pad = 10, nameW = 140;
+        const dateColW = Math.max(16, Math.floor((boxW - pad*2 - nameW) / total));
+        const dateCell = function(d, label){
+            const bg = (d===0||d===6) ? 'background:#ffcccc !important;color:#cc0000;' : 'background:#e8eef8;color:#333;';
+            return '<th class="jdc" style="box-sizing:border-box;width:'+dateColW+'px;'+bg+'border:1px solid #000;padding:2px 0;font-size:9px;font-weight:bold;text-align:center;overflow:hidden;white-space:nowrap">'+label+'</th>';
+        };
+        const shiftCell = function(shift){
+            if(!shift){
+                return '<td class="jdc" style="box-sizing:border-box;width:'+dateColW+'px;border:1px solid #999;background:#ffffff;padding:1px 0;font-size:9px;text-align:center;height:19px"></td>';
+            }
+            const c = getColor(shift);
+            return '<td class="jdc" style="box-sizing:border-box;width:'+dateColW+'px;border:1px solid #999;background:'+c.bg+';color:'+c.color+';padding:1px 0;font-size:9px;font-weight:bold;text-align:center;overflow:hidden;white-space:nowrap;height:19px">'+esc(shift)+'</td>';
+        };
+
+        // Bangun tabel KALENDER: header hari + tanggal, lalu 1 kolom per tanggal (hari per hari selama 1 bulan)
+        let html='<div id="amcJpgBox" style="position:fixed;left:-20000px;top:0;background:#ffffff;padding:'+pad+'px;width:'+boxW+'px">';
+        html+='<div style="text-align:center;font-family:Arial,sans-serif;border-bottom:2px solid #1e3c72;padding-bottom:6px;margin-bottom:8px">'+
+              '<div style="font-size:18px;font-weight:bold;color:#1e3c72">JADWAL DINAS</div>'+
+              '<div style="font-size:13px;color:#555">Apron Movement Control (AMC) &ndash; '+MONTH_NAMES[data.bulan-1]+' '+data.tahun+'</div>'+
+              '</div>';
+        html+='<table style="border-collapse:collapse;table-layout:fixed;width:100%;font-family:Arial,sans-serif;font-size:9px;margin:0 auto">';
+        // ----- header: hari -----
+        html+='<tr><th class="jdc" style="box-sizing:border-box;width:'+nameW+'px;border:1px solid #000;background:#cce5ff;color:#004085;text-align:left;padding:3px 4px;font-size:9px">No / Nama / Jabatan</th>';
+        for(let d=1;d<=total;d++){ const w=new Date(data.tahun, data.bulan-1, d); html+=dateCell(w.getDay(), DAY_NAMES[w.getDay()]); }
+        html+='</tr>';
+        // ----- header: tanggal -----
+        html+='<tr><th class="jdc" style="box-sizing:border-box;width:'+nameW+'px;border:1px solid #000;background:#eef2fa;color:#333;padding:1px 4px;text-align:left">&nbsp;</th>';
+        for(let d=1;d<=total;d++){ const w=new Date(data.tahun, data.bulan-1, d); html+=dateCell(w.getDay(), String(d)); }
+        html+='</tr>';
+
+        // ----- isi matriks kalender: per personil, 1 sel per tanggal -----
+        (data.personil||[]).forEach((p,i)=>{
+            const dd=(data.data_dinas && data.data_dinas[p.id])||{};
+            if(Object.keys(dd).length === 0) return;   // lewati personil tanpa data
+            let row='<td class="jdc" style="box-sizing:border-box;width:'+nameW+'px;border:1px solid #000;background:#f8f9fa;padding:2px 4px;font-size:9px;overflow:hidden;white-space:nowrap">'+(i+1)+'. <b>'+esc(p.nama)+'</b>'+(p.jabatan?('<br><span style="color:#666;font-size:8px">'+esc(p.jabatan)+'</span>'):'')+'</td>';
+            for(let d=1;d<=total;d++){ row+=shiftCell(dd[d]||''); }
+            html+='<tr>'+row+'</tr>';
+        });
+        html+='</table>';
+
+        // Legenda / kondisi jam dinas
+        html+='<div style="margin-top:10px;font-family:Arial,sans-serif;font-size:10px;color:#333">'+
+              '<b>Kondisi / Jam Dinas:</b> ';
+        html+=order.map(s=>{
+            const t=st[s]||{start:'',end:'',erp:''};
+            const c=getColor(s);
+            const jam=(t.start||t.end)?(' ('+(t.start||'--:--')+' s/d '+(t.end||'--:--')+')'):'';
+            return '<span style="display:inline-block;border:1px solid #999;background:'+c.bg+';color:'+c.color+';padding:1px 6px;margin:2px;white-space:nowrap">'+esc(s)+(t.erp?(' <b>['+esc(t.erp)+']</b>'):'')+jam+'</span>';
+        }).join(' ');
+        html+='</div>';
+        html+='</div>';
+
+        // Lepaskan container lama bila ada, lalu tempel di body (off-screen)
+        const old=document.getElementById('amcJpgBox');
+        if(old && old.parentNode) old.parentNode.removeChild(old);
+        const holder=document.createElement('div');
+        holder.innerHTML=html;
+        document.body.appendChild(holder);
+
+        // Proporsi A4 landscape: 297mm x 210mm -> piksel @96dpi = 1123 x 794
+        const el=document.getElementById('amcJpgBox');
+        const baseScale=1.6;
+        const overflowX=el.scrollWidth > 1123, overflowY=el.scrollHeight > 794;
+        const scale = (overflowX||overflowY) ? Math.min(baseScale, 1123/Math.max(el.scrollWidth,1), 794/Math.max(el.scrollHeight,1)) : baseScale;
+        try{
+            const canvas=await window.html2canvas(el,{ scale:scale, useCORS:true, backgroundColor:'#ffffff' });
+            // Crop sesuai ukuran konten aktual (bukan canvas penuh)
+            const cropW=Math.min(canvas.width, Math.max(1, Math.round(el.scrollWidth*scale)));
+            const cropH=Math.min(canvas.height, Math.max(1, Math.round(el.scrollHeight*scale)));
+            const out=document.createElement('canvas');
+            out.width=cropW; out.height=cropH;
+            out.getContext('2d').drawImage(canvas,0,0,cropW,cropH,0,0,cropW,cropH);
+            const a=document.createElement('a');
+            a.href=out.toDataURL('image/jpeg',0.92);
+            a.download='Jadwal_Dinas_'+MONTH_NAMES[data.bulan-1]+'_'+data.tahun+'.jpg';
+            document.body.appendChild(a); a.click(); a.remove();
+        } catch(e){
+            alert('Gagal membuat gambar JPG: '+e.message);
+        } finally {
+            setTimeout(function(){ const b=document.getElementById('amcJpgBox'); if(b && b.parentNode) b.parentNode.removeChild(b); }, 300);
+        }
+    }
+
+    // ===== Init =====
+    document.addEventListener('DOMContentLoaded', function(){
+        initSidebar();
+        checkAuth();
+        showList();
+    });
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

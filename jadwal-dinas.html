@@ -862,22 +862,27 @@
         showPatternMsg('Pola tersimpan untuk ' + p.nama + ' dihapus (isi matriks tidak berubah).', 'muted');
     }
 
-    // Hapus pola tersimpan untuk personil yang sedang dipilih di dropdown (atau semua)
+    // Hapus pola tersimpan untuk personil yang sedang dipilih di dropdown (atau semua).
+    // Sekaligus menghapus data pada kalender (matriks) untuk personil tsb.
     function clearPatternPerson(){
         const sel = document.getElementById('patternPerson');
         const idx = sel ? parseInt(sel.value, 10) : -1;
         const idxs = (idx === -1) ? selectedPersonil.map((_,i)=>i) : [idx];
-        const targets = idxs.map(i=>selectedPersonil[i]).filter(p=>p && autoPatterns[p.id]);
+        const targets = idxs.map(i=>selectedPersonil[i]).filter(p=>p && (autoPatterns[p.id] || (dataDinas[p.id] && Object.keys(dataDinas[p.id]).length)));
         if(targets.length === 0){
             showPatternMsg('Tidak ada pola tersimpan untuk dihapus.', 'muted');
             resetPatternInput();
             return;
         }
-        if(!confirm('Hapus pola tersimpan untuk:\n\n   ' + targets.map(p=>p.nama).join('\n   ') + '\n\nIsi matriks yang sudah terisi tidak diubah.')) return;
-        targets.forEach(p=>{ delete autoPatterns[p.id]; });
+        if(!confirm('Hapus pola tersimpan DAN isi kalender untuk:\n\n   ' + targets.map(p=>p.nama).join('\n   ') + '\n\nSemua sel pada baris personil ini akan dikosongkan.')) return;
+        targets.forEach(p=>{
+            delete autoPatterns[p.id];
+            if(dataDinas && dataDinas[p.id]){ delete dataDinas[p.id]; }
+        });
+        renderMatrix();
         renderSavedPatterns();
         onPatternPersonChange();
-        showPatternMsg('Pola tersimpan dihapus untuk ' + targets.length + ' personil (isi matriks tidak berubah).', 'muted');
+        showPatternMsg('Pola tersimpan & isi kalender dihapus untuk ' + targets.length + ' personil.', 'success');
     }
 
     function resetPatternInput(){

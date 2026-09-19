@@ -458,6 +458,16 @@
                     <i class="bi bi-calendar3"></i> <span class="nav-text">Jadwal Dinas</span>
                 </a>
             </li>
+             <li class="d-md-none">
+                <a href="#" onclick="openMyProfile(); return false;" title="Profil">
+                    <i class="bi bi-person"></i> <span class="nav-text">Profil</span>
+                </a>
+            </li>
+             <li class="d-md-none">
+                <a href="#" onclick="openChangePassword(); return false;" title="Change Password">
+                    <i class="bi bi-key"></i> <span class="nav-text">Password</span>
+                </a>
+            </li>
              <li>
                 <a href="#" onclick="logout(); return false;">
                     <i class="bi bi-box-arrow-right"></i> <span class="nav-text">Logout</span>
@@ -522,6 +532,30 @@
                             <i class="bi bi-x-lg"></i>
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== CARD STATUS JADWAL DINAS HARI INI (SESUAI LOGIN) ===== -->
+        <div class="card border-0 shadow-sm mb-4 overflow-hidden">
+            <div class="card-body text-white" style="background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+                    <div>
+                        <h6 class="mb-1 fw-bold text-uppercase small d-flex align-items-center gap-2" style="letter-spacing:.5px; opacity:.9;">
+                            <i class="bi bi-calendar2-week fs-6"></i> Status Jadwal Dinas
+                        </h6>
+                        <div class="fw-bold fs-5" id="dinasUserName">Memuat profil...</div>
+                        <div class="small" id="dinasUserRole" style="opacity:.75;">&nbsp;</div>
+                    </div>
+                    <div class="text-md-end">
+                        <div class="small fw-semibold" style="opacity:.9;"><i class="bi bi-sun-fill me-1"></i>Hari Ini &middot; <span id="dinasTodayDate">--</span></div>
+                        <div id="dinasToday" class="mt-2">Memuat...</div>
+                    </div>
+                </div>
+                <hr class="my-3" style="border-color: rgba(255,255,255,.22);">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <span class="small fw-semibold" style="opacity:.9;"><i class="bi bi-calendar3 me-1"></i>Besok &middot; <span id="dinasTomorrowDate">--</span></span>
+                    <span id="dinasTomorrow" class="fw-bold">Memuat...</span>
                 </div>
             </div>
         </div>
@@ -793,6 +827,74 @@
         }
     }
 
+    // ============================================================
+    // CARD: STATUS JADWAL DINAS HARI INI & BESOK (SESUAI LOGIN)
+    // ============================================================
+    // Default kondisi/jam dinas (dicocokkan dengan DEFAULT_SHIFT_TIMES di jadwal-dinas.html)
+    const DEFAULT_DINAS_TIMES = {
+        'Pagi':  { start: '08:00', end: '20:00' },
+        'Malam': { start: '20:00', end: '08:00' }
+    };
+
+    // Warna menyesuaikan status dinas (bias)
+    function dinasBadge(shift) {
+        const cls = {
+            'Pagi': 'bg-primary', 'Malam': 'bg-info text-dark', 'Libur': 'bg-danger',
+            'Cuti': 'bg-warning text-dark', 'SPJ': 'bg-info text-dark',
+            'DIK': 'bg-success', 'RFS': 'bg-secondary'
+        };
+        return cls[shift] || 'bg-secondary';
+    }
+
+    // Format label dinas + jam, misal "Pagi (08.00 s/d 20.00)"
+    function dinasLabel(shift, shiftTimes) {
+        if (!shift) {
+            return '<span class="badge bg-secondary bg-opacity-25 text-white fs-6 px-3 py-2">Libur / Belum dijadwalkan</span>';
+        }
+        const t = (shiftTimes && shiftTimes[shift]) || {};
+        const start = t.start || (DEFAULT_DINAS_TIMES[shift] ? DEFAULT_DINAS_TIMES[shift].start : '') || '';
+        const end = t.end || (DEFAULT_DINAS_TIMES[shift] ? DEFAULT_DINAS_TIMES[shift].end : '') || '';
+        // Ubah "HH:MM" -> "HH.MM" agar tampil "08.00 s/d 21.00"
+        const fmt = (v) => String(v || '').replace(':', '.');
+        let label = shift;
+        if (start || end) label += ` (${fmt(start)} s/d ${fmt(end)})`;
+        return `<span class="badge ${dinasBadge(shift)} fs-6 px-3 py-2"><i class="bi bi-clock-history me-1"></i>${label}</span>`;
+    }
+
+    // Tambah 1 hari pada tanggal lokal (YYYY-MM-DD)
+    function addDaysLocal(dateStr, days) {
+        const d = new Date(dateStr + 'T00:00:00');
+        d.setDate(d.getDate() + days);
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+
+    // Ambil nama user yang login dari profil + tabel personil (sama seperti fetchCurrentUserData di logic.js)
+    async function getCurrentUserInfo() {
+        try {
+            const { data: { session } } = await window.supabaseClient.auth.getSession();
+            if (!session) return null;
+            const userId = session.user.id;
+            const { data: profile } = await window.supabaseClient.from('profiles').select('full_name, unit').eq('id', userId).maybeSingle();
+
+            // Cari personil: prefer via user_id, fallback via nama_lengkap
+            let personil = null;
+            const { data: pUser } = await window.supabaseClient.from('personil').select('id, nama_lengkap, jabatan, role').eq('user_id', userId).maybeSingle();
+            if (pUser) {
+                personil = pUser;
+            } else if (profile && profile.full_name) {
+                const { data: pName } = await window.supabaseClient.from('personil').select('id, nama_lengkap, jabatan, role').eq('nama_lengkap', profile.full_name).maybeSingle();
+                personil = pName || null;
+            }
+            const nama = (personil && personil.nama_lengkap) || (profile && profile.full_name) || (session.user.email || '').split('@')[0];
+            const jabatan = (personil && personil.jabatan) || '';
+            const unit = (personil && personil.role) || (profile && profile.unit) || '';
+            return { nama, jabatan, unit, personilId: personil ? personil.id : null, personilNama: personil ? personil.nama_lengkap : nama };
+        } catch (e) {
+            console.error('getCurrentUserInfo error:', e);
+            return null;
+        }
+    }
+
     // --- TANGGAL LOKAL (YYYY-MM-DD) ---
     function localDateString() {
         const d = new Date();
@@ -823,6 +925,7 @@
         const end = document.getElementById('filterEndDate') ? document.getElementById('filterEndDate').value : '';
 
         await Promise.all([
+            loadJadwalDinasStatus(),  // Card Status Jadwal Dinas hari ini & besok (sesuai login)
             loadLogbookStats(start || null, end || null), // Untuk Total, Dom/Intl, Tabel Penggunaan
             loadAvioStatus(),    // Untuk Status Serviceable/Unserviceable (D5-D8)
             loadContributorRanking(start || null, end || null) // KPI User Pengecekan (Checklist) Aviobridge
@@ -845,6 +948,92 @@
         document.getElementById('filterStartDate').value = '';
         document.getElementById('filterEndDate').value = '';
         refreshDashboard();
+    }
+
+    // ============================================================
+    // CARD STATUS JADWAL DINAS — AMBIL DATA & TAMPILKAN
+    // ============================================================
+    // Ambil data jadwal dinas untuk bulan-target (prioritas status Final)
+    async function fetchJadwalDinasFor(bulan, tahun) {
+        const { data, error } = await window.supabaseClient
+            .from('jadwal_dinas')
+            .select('id, bulan, tahun, status, personil, data_dinas, shift_times')
+            .eq('bulan', bulan)
+            .eq('tahun', tahun);
+
+        if (error) {
+            console.error('Jadwal Dinas Error:', error);
+            return null;
+        }
+        if (!data || data.length === 0) return null;
+        // Prioritas: status "Final" dulu, lalu yang paling baru dibuat
+        data.sort((a, b) => {
+            const score = (s) => (s && s.status === 'Final' ? 1 : 0);
+            return score(b) - score(a);
+        });
+        return data[0];
+    }
+
+    // Cari personil yang namanya cocok dengan user login (case-insensitive)
+    function findJadwalPersonil(jadwal, nama) {
+        if (!jadwal || !nama) return null;
+        const clean = String(nama).trim().toLowerCase();
+        const personilList = jadwal.personil || [];
+        return personilList.find(p => String(p.nama || '').trim().toLowerCase() === clean) || null;
+    }
+
+    // Tampilkan kartu status jadwal dinas hari ini & besok (sesuai login)
+    async function loadJadwalDinasStatus() {
+        const today = localDateString();
+        const tomorrow = addDaysLocal(today, 1);
+        const dToday = new Date(today + 'T00:00:00');
+        const dTomorrow = new Date(tomorrow + 'T00:00:00');
+
+        // Format tanggal Indonesia lengkap
+        const fmtDate = (s) => {
+            const dd = new Date(s + 'T00:00:00');
+            return dd.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        };
+        const todayDateEl = document.getElementById('dinasTodayDate');
+        const tomorrowDateEl = document.getElementById('dinasTomorrowDate');
+        if (todayDateEl) todayDateEl.innerText = fmtDate(today);
+        if (tomorrowDateEl) tomorrowDateEl.innerText = fmtDate(tomorrow);
+
+        // Identitas user login
+        const user = await getCurrentUserInfo();
+        if (!user) return;
+        const nameEl = document.getElementById('dinasUserName');
+        const roleEl = document.getElementById('dinasUserRole');
+        if (nameEl) nameEl.innerText = user.nama;
+        if (roleEl) roleEl.innerText = user.jabatan || user.unit || '';
+
+        // Ambil jadwal bulan ini (+ bulan depan bila besok beda bulan)
+        const bulan = dToday.getMonth() + 1;
+        const tahun = dToday.getFullYear();
+        const bulanBesok = dTomorrow.getMonth() + 1;
+        const tahunBesok = dTomorrow.getFullYear();
+        const bedaBulan = (bulanBesok !== bulan || tahunBesok !== tahun);
+
+        const [jadwalNow, jadwalNext] = await Promise.all([
+            fetchJadwalDinasFor(bulan, tahun),
+            bedaBulan ? fetchJadwalDinasFor(bulanBesok, tahunBesok) : Promise.resolve(null)
+        ]);
+
+        // Cocokkan user dengan baris personil pada jadwal
+        const searchNama = user.personilNama || user.nama;
+        const todayPerson = findJadwalPersonil(jadwalNow, searchNama);
+        const tomorrowJadwal = bedaBulan ? (jadwalNext || jadwalNow) : jadwalNow;
+        const tomorrowPerson = findJadwalPersonil(tomorrowJadwal, searchNama);
+
+        const dayNow = String(dToday.getDate());
+        const dayNext = String(dTomorrow.getDate());
+        const shiftNow = (todayPerson && jadwalNow.data_dinas && jadwalNow.data_dinas[todayPerson.id]) ? (jadwalNow.data_dinas[todayPerson.id][dayNow] || '') : '';
+        const shiftNext = (tomorrowPerson && tomorrowJadwal.data_dinas && tomorrowJadwal.data_dinas[tomorrowPerson.id]) ? (tomorrowJadwal.data_dinas[tomorrowPerson.id][dayNext] || '') : '';
+
+        const elToday = document.getElementById('dinasToday');
+        const elTomorrow = document.getElementById('dinasTomorrow');
+        if (elToday) elToday.innerHTML = dinasLabel(shiftNow, jadwalNow ? jadwalNow.shift_times : null);
+        if (elTomorrow) elTomorrow.innerHTML = dinasLabel(shiftNext, tomorrowJadwal ? tomorrowJadwal.shift_times : null);
     }
 
     // --- 1. LOAD DATA LOGBOOK & HITUNG STATISTIK ---

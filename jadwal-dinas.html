@@ -114,6 +114,20 @@
     body.form-open .fab-add { display: none !important; }
 }
 </style>
+<style>
+/* ===== DARK MODE: tabel personil & kalender dinas =====
+   Override wajib pakai !important karena tema dark global (logic.js) mengubah
+   warna teks body/tabel menjadi terang, sedangkan elemen di bawah ini tetap
+   berlatar terang (hard-coded) sehingga tulisannya menjadi tidak terbaca. */
+[data-bs-theme="dark"] .person-item{background-color:#1f2733 !important;border-color:#343a40 !important;color:#e9ecef}
+[data-bs-theme="dark"] .person-item .person-name{color:#e9ecef}
+[data-bs-theme="dark"] .person-item .person-role{color:#adb5bd}
+[data-bs-theme="dark"] .table-matrix th,
+[data-bs-theme="dark"] .table-matrix td{border-color:#343a40}
+[data-bs-theme="dark"] .table-matrix th.col-name,
+[data-bs-theme="dark"] .table-matrix td.col-name{background-color:#1f2733 !important;color:#e9ecef}
+[data-bs-theme="dark"] .table-matrix td.col-name small.text-muted{color:#adb5bd !important}
+</style>
 </head>
 <body class="bg-light">
 

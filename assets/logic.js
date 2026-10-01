@@ -21,10 +21,10 @@ if (!window._sb) {
 // 2. LOGIKA HAK AKSES (RBAC)
 // ==========================================
 const ACCESS_RULES = {
-    'Admin': ['checklist.html', 'logbook.html', 'dashboard.html', 'settings.html', 'admintim.html', 'avio_checklist.html', 'avio_logbook.html', 'master-personil.html', 'jadwal-dinas.html'],
-    'AMC': ['checklist.html', 'logbook.html', 'dashboard.html', 'settings.html', 'admintim.html', 'avio_checklist.html', 'avio_logbook.html', 'jadwal-dinas.html'],
+    'Admin': ['checklist.html', 'logbook.html', 'dashboard.html', 'settings.html', 'admintim.html', 'pendaftaran-tim.html', 'avio_checklist.html', 'avio_logbook.html', 'master-personil.html', 'jadwal-dinas.html'],
+    'AMC': ['checklist.html', 'logbook.html', 'dashboard.html', 'settings.html', 'admintim.html', 'pendaftaran-tim.html', 'avio_checklist.html', 'avio_logbook.html', 'jadwal-dinas.html'],
     'Avio': ['avio_checklist.html', 'avio_logbook.html', 'dashboard.html', 'settings.html', 'jadwal-dinas.html'],
-    'TIM': ['admintim.html', 'dashboard.html', 'settings.html']
+    'TIM': ['dashboard.html', 'pendaftaran-tim.html']
 };
 
 // Halaman yang boleh diakses oleh semua unit yang sudah login
@@ -244,6 +244,55 @@ function closeProfileMenu() {
     const menu = document.getElementById('profileMenu');
     if (menu) menu.classList.remove('show');
 }
+
+// ==========================================
+// 2C. DAFTAR PERUSAHAAN (TABEL perusahaan_list)
+// ==========================================
+// Perusahaan baru yang ditambahkan lewat tombol "+ Tambah" pada halaman
+// pendaftaran-tim.html / pesertatim.html otomatis disimpan ke tabel
+// `perusahaan_list`, sehingga namanya tampil permanen di semua halaman,
+// perangkat, dan sesi berikutnya (bukan hanya di dropdown sesaat).
+// SQL pembuatannya ada di SETUP-PENDAFTARAN-TIM.md.
+
+// Ambil daftar nama perusahaan dari database (urut abjad).
+// Bila tabel belum dibuat / error -> kembalikan [] (halaman tetap pakai default).
+async function amcFetchPerusahaanList(){
+    try{
+        const { data, error } = await window.supabaseClient
+            .from('perusahaan_list')
+            .select('nama')
+            .order('nama', { ascending: true });
+        if(error){
+            console.warn('amcFetchPerusahaanList:', error.message);
+            return [];
+        }
+        return (data || []).map(function(r){ return r.nama; }).filter(Boolean);
+    }catch(e){ return []; }
+}
+
+// Simpan nama perusahaan baru ke database.
+// Return { error, duplicate }: duplicate=true bila nama sudah ada (bukan error).
+async function amcAddPerusahaan(nama){
+    const v = String(nama||'').trim();
+    if(!v) return { error: new Error('Nama perusahaan kosong.'), duplicate: false };
+    try{
+        const { error } = await window.supabaseClient
+            .from('perusahaan_list')
+            .insert([{ nama: v }]);
+        if(error){
+            const m = String(error.message||'').toLowerCase();
+            if(error.code === '23505' || m.indexOf('duplicate') !== -1 || m.indexOf('unique') !== -1){
+                return { error: null, duplicate: true };
+            }
+            return { error: error, duplicate: false };
+        }
+        return { error: null, duplicate: false };
+    }catch(e){
+        return { error: e, duplicate: false };
+    }
+}
+window.amcFetchPerusahaanList = amcFetchPerusahaanList;
+window.amcAddPerusahaan = amcAddPerusahaan;
 
 // ==========================================
 // MY PROFILE & CHANGE PASSWORD (MODAL)
@@ -624,6 +673,57 @@ async function userRequestTicket() {
     }
 }
 
+// --- HELPER: META & KEDALUWARSA TIKET (2 MENIT) ---
+const TICKET_EXPIRY_MS = 2 * 60 * 1000;   // tiket hangus jika tidak dipakai dalam 2 menit
+
+function _parseMetaSafe(row){
+    try {
+        if(!row || !row.meta) return {};
+        if(typeof row.meta === 'string') return JSON.parse(row.meta) || {};
+        return row.meta || {};
+    } catch(e){ return {}; }
+}
+function _isMetaColumnError(err){
+    if(!err) return false;
+    const msg = (String(err.message||'')+' '+String(err.details||'')+' '+String(err.hint||'')).toLowerCase();
+    return err.code === '42703' || (msg.indexOf('meta') !== -1 && (msg.indexOf('column') !== -1 || msg.indexOf('does not exist') !== -1 || msg.indexOf('pgrst204') !== -1));
+}
+
+// Hapus tiket kedaluwarsa dari database: kode tiket hilang + status kembali
+// ke REQUESTING sehingga permintaan muncul lagi di admintim.html.
+async function _clearExpiredTicket(id){
+    try{
+        const { data: cur } = await _sb.from('peserta_ujian').select('meta').eq('id', id).maybeSingle();
+        const meta = _parseMetaSafe(cur);
+        delete meta.ticket_issued_at;
+        delete meta.ticket_used_at;
+        const upd = await _sb.from('peserta_ujian')
+            .update({ ticket_code: null, status: 'REQUESTING', meta: meta })
+            .eq('id', id);
+        if(upd.error && _isMetaColumnError(upd.error)){
+            await _sb.from('peserta_ujian')
+                .update({ ticket_code: null, status: 'REQUESTING' })
+                .eq('id', id);
+        }
+    }catch(e){ console.warn('Gagal menghapus tiket kedaluwarsa:', e); }
+}
+
+// Dipanggil polling loadAdminData (admintim.html): tiket berstatus APPROVED yang
+// tidak dipakai peserta dalam 2 menit sejak diterbitkan otomatis dihapus.
+function autoExpireTickets(users){
+    const now = Date.now();
+    (users || []).forEach(function(u){
+        if(u.status !== 'APPROVED' || !u.ticket_code) return;
+        const meta = _parseMetaSafe(u);
+        const issued = meta.ticket_issued_at ? Date.parse(meta.ticket_issued_at) : NaN;
+        if(!isNaN(issued) && (now - issued) > TICKET_EXPIRY_MS && !meta.ticket_used_at){
+            _clearExpiredTicket(u.id);   // bersihkan di database (async, tanpa menunggu)
+            u.ticket_code = null;        // perbarui salinan lokal agar tabel langsung mencerminkan
+            u.status = 'REQUESTING';
+        }
+    });
+}
+
 // --- VALIDATE TICKET ---
 async function validateTicket() {
     const inputCode = document.getElementById('input-ticket').value.trim().toUpperCase();
@@ -633,7 +733,7 @@ async function validateTicket() {
 
     const { data, error } = await _sb
         .from('peserta_ujian')
-        .select('ticket_code, status')
+        .select('ticket_code, status, meta')
         .eq('id', myId)
         .single();
 
@@ -642,6 +742,20 @@ async function validateTicket() {
     if (!data) return alert("Data peserta tidak ditemukan!");
 
     if (data.status === 'APPROVED' && data.ticket_code === inputCode) {
+        // Kedaluwarsa: tiket harus dipakai maksimal 2 menit sejak diterbitkan Admin.
+        // Jika lewat, kode tiket otomatis dihapus (hilang dari admintim.html).
+        const vMeta = _parseMetaSafe(data);
+        const issued = vMeta.ticket_issued_at ? Date.parse(vMeta.ticket_issued_at) : NaN;
+        if (!isNaN(issued) && (Date.now() - issued) > TICKET_EXPIRY_MS && !vMeta.ticket_used_at) {
+            _clearExpiredTicket(myId);
+            return alert("Tiket kedaluwarsa (tidak dimasukkan dalam 2 menit).\nKlik REQUEST TICKET lagi ke Admin untuk minta kode baru.");
+        }
+        // Tandai tiket sudah dipakai agar tidak dianggap kedaluwarsa selama ujian berlangsung
+        try {
+            vMeta.ticket_used_at = new Date().toISOString();
+            const updUsed = await _sb.from('peserta_ujian').update({ meta: vMeta }).eq('id', myId);
+            if (updUsed.error && _isMetaColumnError(updUsed.error)) { /* kolom meta belum ada — abaikan */ }
+        } catch (e) {}
         startExam();
     } else if (data.ticket_code && data.ticket_code !== inputCode) {
         alert("Kode tiket SALAH! Coba cek lagi.");
@@ -779,6 +893,12 @@ async function loadAdminData() {
         return;
     }
 
+    // ===== AUTO-KEDALUWARSA TIKET (2 MENIT) =====
+    // Tiket berstatus APPROVED yang tidak dimasukkan peserta dalam 2 menit
+    // otomatis dihapus: kode tiket hilang & status kembali REQUESTING
+    // (permintaan muncul lagi di tabel "Permintaan Tiket Masuk").
+    if (!isTim) autoExpireTickets(users);
+
     reqTable.innerHTML = "";
     resTable.innerHTML = "";
 
@@ -808,6 +928,8 @@ async function loadAdminData() {
                 : '<span class="badge bg-danger">GAGAL</span>';
         } else if (user.status === 'APPROVED') {
             badge = '<span class="badge bg-info text-dark">TIKET TERBIT</span>';
+        } else if (user.status === 'DIAMBIL') {
+            badge = '<span class="badge bg-primary">TIM Sudah Diambil</span>';
         }
 
         let fotoBtn = user.foto_sim_url 
@@ -837,10 +959,28 @@ async function loadAdminData() {
 async function adminGenerateTicket(userId, userName) {
     const newTicket = "TIM-" + Math.floor(1000 + Math.random() * 9000);
 
-    const { error } = await _sb
+    // Catat waktu terbit tiket di meta (dipakai untuk kedaluwarsa otomatis 2 menit)
+    let tiketMeta = {};
+    try {
+        const { data: cur } = await _sb.from('peserta_ujian').select('meta').eq('id', userId).maybeSingle();
+        tiketMeta = _parseMetaSafe(cur);
+    } catch (e) {}
+    tiketMeta.ticket_issued_at = new Date().toISOString();
+    delete tiketMeta.ticket_used_at;
+
+    let upd = await _sb
         .from('peserta_ujian')
-        .update({ ticket_code: newTicket, status: 'APPROVED' })
+        .update({ ticket_code: newTicket, status: 'APPROVED', meta: tiketMeta })
         .eq('id', userId);
+    let error = upd.error;
+    // Kolom meta belum ada di tabel -> terbitkan tiket tanpa meta (kedaluwarsa nonaktif)
+    if (error && _isMetaColumnError(error)) {
+        upd = await _sb
+            .from('peserta_ujian')
+            .update({ ticket_code: newTicket, status: 'APPROVED' })
+            .eq('id', userId);
+        error = upd.error;
+    }
 
     if (error) {
         alert("Error update: " + error.message);

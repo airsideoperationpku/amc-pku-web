@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pendaftaran TIM - AMC PKU</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
+    <!-- Load Supabase library FIRST -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Initialize Supabase client (jangan redeclare SUPABASE_URL/KEY, sudah ada di logic.js) -->
+    <script>
+        if (typeof window.supabase !== 'undefined' && !window.supabaseClient) {
+            window.supabaseClient = window.supabase.createClient(
+                'https://voqvauapafsdcmuswsnq.supabase.co',
+                'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZvcXZhdWFwYWZzZGNtdXN3c25xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjYxNDMxNTYsImV4cCI6MjA4MTcxOTE1Nn0.IJG7ofqfc4Qy44KlbTDGzo4OoQwO0xTXUwKPt04kRnI'
+            );
+        }
+    </script>
+    <!-- Bootstrap JS bundle (Modal, Collapse, dll.) — WAJIB dimuat sebelum logic.js
+         supaya objek global "bootstrap" tersedia (dipakai modal pendaftaran, viewDetail,
+         dan showProfileModal milik logic.js). Tanpa ini: "bootstrap is not defined". -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- RBAC, profil, logout & filter menu sidebar (shared) -->
+    <script src="assets/logic.js"></script>
+
+    <style>
+        body { font-family: 'Poppins', sans-serif; }
+        @media print {
+            .no-print { display: none !important; }
+            #content { margin-left: 0 !important; width: 100% !important; }
+        }
+        .hidden { display: none !important; }
+
+        /* ===== Sidebar (sama persis seperti halaman lain) ===== */
+        #sidebar { position: fixed; top: 0; left: 0; display: flex; flex-direction: column; width: 250px; height: 100vh; background: linear-gradient(180deg, #1e3c72 0%, #2a5298 100%); color: #fff; transition: width 0.3s ease; box-shadow: 2px 0 5px rgba(0,0,0,0.1); z-index: 1000; overflow-x: hidden; white-space: nowrap; }
+        #sidebar.collapsed { width: 70px; }
+        #sidebar .sidebar-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 15px; background: rgba(0,0,0,0.2); min-height: 64px; }
+        #sidebar.collapsed .sidebar-header { justify-content: center; padding: 15px 0; }
+        #sidebar .brand h3 { margin: 0; font-size: 1.15rem; font-weight: 600; white-space: nowrap; }
+        #sidebar .brand p { margin: 0; font-size: .72rem; color: rgba(255,255,255,0.75); white-space: nowrap; }
+        #sidebar.collapsed .brand { display: none; }
+        .sidebar-toggle-btn { background: rgba(255,255,255,0.15); border: none; color: #fff; width: 34px; height: 34px; flex-shrink: 0; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.05rem; transition: background 0.2s; }
+        .sidebar-toggle-btn:hover { background: rgba(255,255,255,0.3); }
+        #sidebar ul.components { flex: 1 1 auto; padding: 10px 0; margin: 0; list-style: none; }
+        #sidebar ul li a { display: flex; align-items: center; gap: 12px; padding: 11px 16px; margin: 2px 8px; font-size: .95rem; color: rgba(255,255,255,0.8); text-decoration: none; transition: all 0.3s; border-radius: 6px; white-space: nowrap; }
+        #sidebar ul li a i { font-size: 1.25rem; min-width: 30px; text-align: center; flex-shrink: 0; }
+        #sidebar.collapsed ul li a { justify-content: center; padding: 11px 0; margin: 2px 10px; }
+        #sidebar ul li a:hover, #sidebar ul li a.active { color: #fff; background: rgba(255,255,255,0.12); }
+        .nav-text { transition: opacity 0.25s ease; white-space: nowrap; }
+        #sidebar.collapsed .nav-text { opacity: 0; width: 0; overflow: hidden; }
+        #content { margin-left: 70px; padding: 20px; min-height: 100vh; transition: margin-left 0.3s ease; }
+        #sidebar:not(.collapsed) ~ #content { margin-left: 250px; }
+        .wrapper { width: 100%; position: relative; }
+
+        /* Profile header (sidebar) — ditangani logic.js */
+        .sidebar-profile { position: relative; margin-top: auto; border-top: 1px solid rgba(255,255,255,0.15); }
+        .profile-header { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; transition: background 0.2s; }
+        .profile-header:hover { background: rgba(255,255,255,0.08); }
+        .profile-avatar { width: 40px; height: 40px; border-radius: 50%; flex-shrink: 0; background: rgba(255,255,255,0.2); border: 2px solid rgba(255,255,255,0.4); display: inline-flex; align-items: center; justify-content: center; font-weight: 600; font-size: 1.05rem; color: #fff; overflow: hidden; }
+        .profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .profile-info { flex: 1; min-width: 0; }
+        .profile-name { font-size: .95rem; font-weight: 600; color: #fff; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .profile-role { font-size: .72rem; color: rgba(255,255,255,0.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .profile-caret { color: rgba(255,255,255,0.7); font-size: .8rem; flex-shrink: 0; }
+        #sidebar.collapsed .profile-header { justify-content: center; padding: 12px 0; }
+        #sidebar.collapsed .profile-info, #sidebar.collapsed .profile-caret { display: none; }
+        .profile-menu { display: none; position: fixed; z-index: 2000; background: #fff; border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); list-style: none; padding: 6px 0; margin: 0; width: 200px; }
+        .profile-menu.show { display: block; }
+        #sidebar .profile-menu li a { display: flex; align-items: center; gap: 10px; padding: 9px 14px; margin: 0; color: #333; font-size: .85rem; text-decoration: none; transition: background 0.15s; border-radius: 0; }
+        #sidebar .profile-menu li a:hover { background: #f0f3f8; color: #333; }
+        #sidebar .profile-menu li a i { font-size: 1rem; min-width: 18px; color: #1e3c72; }
+        .sidebar-footer { padding: 0 14px 12px; }
+        .sidebar-footer small { font-size: .68rem; }
+        #sidebar.collapsed .sidebar-footer { display: none; }
+
+        /* Floating Action Button (mobile only) */
+        .fab-add { display: none; position: fixed; bottom: 80px; right: 20px; z-index: 1500; align-items: center; gap: 8px; padding: 14px 20px; border: none; border-radius: 50px; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: #fff; font-weight: 600; font-size: .95rem; box-shadow: 0 6px 18px rgba(0,0,0,0.3); cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }
+        .fab-add i { font-size: 1.1rem; }
+        .fab-add:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,0.35); }
+        @media (max-width: 767.98px) { .fab-add { display: inline-flex; } }
+        @media print { .no-print { display: none !important; } #sidebar { display: none !important; } }
+    </style>
+<style>
+/* MOBILE: SIDEBAR -> FLOATING BOTTOM BAR (sama seperti halaman lain) */
+@media screen and (max-width: 767.98px) {
+    #sidebar { position: fixed !important; top: auto !important; bottom: 12px !important; left: 12px !important; right: 12px !important; width: auto !important; height: auto !important; flex-direction: row !important; align-items: stretch !important; border-radius: 18px !important; background: rgba(30, 60, 114, 0.97) !important; box-shadow: 0 10px 30px rgba(0,0,0,0.35) !important; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 1050 !important; padding: 4px !important; }
+    #sidebar .sidebar-header, #sidebar .sidebar-profile, #sidebar .sidebar-footer, #sidebar .sidebar-toggle-btn { display: none !important; }
+    #sidebar ul.components { flex: 1 1 auto !important; display: flex !important; flex-direction: row !important; align-items: center !important; justify-content: space-around !important; gap: 2px !important; padding: 0 !important; margin: 0 !important; width: 100% !important; list-style: none !important; }
+    #sidebar ul.components li { flex: 1 1 0 !important; min-width: 0 !important; }
+    #sidebar ul li a { flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 3px !important; padding: 7px 2px 6px !important; margin: 0 1px !important; border-radius: 12px !important; font-size: .6rem !important; white-space: normal !important; overflow: hidden !important; }
+    #sidebar ul li a i { font-size: 1.35rem !important; min-width: 0 !important; }
+    #sidebar ul li a.active { background: rgba(255,255,255,0.18) !important; color: #fff !important; }
+    #sidebar .nav-text { opacity: 1 !important; width: auto !important; display: block !important; font-size: .55rem !important; line-height: 1.1 !important; max-width: 100% !important; overflow: hidden !important; text-overflow: ellipsis !important; white-space: nowrap !important; }
+    #sidebar ~ #content, #sidebar:not(.collapsed) ~ #content { margin-left: 0 !important; padding: 12px !important; padding-bottom: 96px !important; }
+    body.form-open .fab-add { display: none !important; }
+}
+</style>
+</head>
+<body class="bg-light">
+
+<div class="wrapper">
+    <!-- Sidebar -->
+    <nav id="sidebar" class="collapsed no-print">
+        <div class="sidebar-header">
+            <div class="brand">
+                <h3><i class="bi bi-airplane-fill"></i> AMC</h3>
+                <p>Sultan Syarif Kasim II</p>
+            </div>
+            <button type="button" class="sidebar-toggle-btn" onclick="toggleSidebar()" aria-label="Buka/Tutup menu" title="Buka/Tutup menu">
+                <i class="bi bi-chevron-double-right"></i>
+            </button>
+        </div>
+
+        <ul class="list-unstyled components">
+            <li><a href="dashboard.html"><i class="bi bi-house"></i> <span class="nav-text">Dashboard</span></a></li>
+            <li><a href="checklist.html"><i class="bi bi-card-checklist"></i> <span class="nav-text">Checklist</span></a></li>
+            <li><a href="logbook.html"><i class="bi bi-journal-check"></i> <span class="nav-text">Logbook</span></a></li>
+            <li><a href="admintim.html"><i class="bi bi-display"></i> <span class="nav-text">Admin TIM</span></a></li>
+            <li><a href="#" onclick="setActiveMenu(this); return false;" class="active"><i class="bi bi-person-plus"></i> <span class="nav-text">Pendaftaran TIM</span></a></li>
+            <li><a href="avio_logbook.html"><i class="bi bi-journal-plus"></i> <span class="nav-text">Avio Logbook</span></a></li>
+            <li><a href="avio_checklist.html"><i class="bi bi-person-check"></i> <span class="nav-text">Avio Checklist</span></a></li>
+            <li><a href="master-personil.html"><i class="bi bi-person-fill-gear"></i> <span class="nav-text">Master Personil</span></a></li>
+            <li><a href="jadwal-dinas.html"><i class="bi bi-calendar3"></i> <span class="nav-text">Jadwal Dinas</span></a></li>
+            <li class="d-md-none"><a href="#" onclick="openMyProfile(); return false;" title="Profil"><i class="bi bi-person"></i> <span class="nav-text">Profil</span></a></li>
+            <li class="d-md-none"><a href="#" onclick="openChangePassword(); return false;" title="Change Password"><i class="bi bi-key"></i> <span class="nav-text">Password</span></a></li>
+            <li><a href="#" onclick="logout(); return false;"><i class="bi bi-box-arrow-right"></i> <span class="nav-text">Logout</span></a></li>
+        </ul>
+
+        <div class="sidebar-profile">
+            <div class="profile-header" onclick="toggleProfileMenu(event)">
+                <div class="profile-avatar" id="profileAvatar">U</div>
+                <div class="profile-info">
+                    <div class="profile-name" id="profileName">Memuat...</div>
+                    <div class="profile-role" id="profileRole">Role</div>
+                </div>
+                <i class="bi bi-chevron-up profile-caret"></i>
+            </div>
+            <ul class="profile-menu" id="profileMenu">
+                <li><a href="#" onclick="openMyProfile(); return false;"><i class="bi bi-person"></i> My Profile</a></li>
+                <li><a href="#" onclick="openChangePassword(); return false;"><i class="bi bi-key"></i> Change Password</a></li>
+            </ul>
+        </div>
+        <div class="sidebar-footer">
+            <small class="text-white-50">Apron Movement Control PKU</small>
+        </div>
+    </nav>
+
+    <!-- Page Content -->
+    <div id="content">
+
+        <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+            <div>
+                <h3 class="text-primary fw-bold mb-1"><i class="bi bi-person-plus"></i> Pendaftaran TIM</h3>
+                <p class="text-muted mb-0">Daftar pendaftaran Tanda Izin Mengemudi sisi udara (terkoneksi dengan Admin TIM &amp; Ujian TIM).</p>
+            </div>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <div class="input-group input-group-sm" style="width: 260px;">
+                    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="searchInput" placeholder="Cari nama / perusahaan..." onkeyup="filterTable()">
+                </div>
+                <button class="btn btn-primary shadow-sm d-none d-md-inline-flex align-items-center gap-1" onclick="openPendaftaranForm(null)">
+                    <i class="bi bi-plus-circle me-1"></i> Tambah Data
+                </button>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h6 class="m-0 text-primary fw-bold"><i class="bi bi-list-ul"></i> Daftar Pendaftaran TIM</h6>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover table-bordered align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">No</th>
+                            <th>Nama</th>
+                            <th>Perusahaan</th>
+                            <th>Jabatan</th>
+                            <th>Kategori TIM</th>
+                            <th>Status Progres TIM</th>
+                            <th>Masa Berlaku TIM</th>
+                            <th>Pelanggaran</th>
+                            <th class="text-center">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="timTableBody">
+                        <tr><td colspan="9" class="text-center py-4">Memuat data...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Floating Action Button (mobile only) untuk Tambah Data -->
+<button type="button" class="fab-add no-print" onclick="openPendaftaranForm(null)" aria-label="Tambah Data">
+    <i class="bi bi-plus-circle"></i> Tambah Data
+</button>
+
+<!-- ===== MODAL FORM PENDAFTARAN TIM ===== -->
+<div class="modal fade" id="pendaftaranModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-person-plus"></i> <span id="pendaftaranModalTitle">Tambah Data TIM</span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body">
+                <form id="pendaftaranForm">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Jenis TIM <span class="text-danger">*</span></label>
+                        <select id="frJenisTim" class="form-select" onchange="onJenisTimChange()">
+                            <option value="">-- Pilih Jenis TIM --</option>
+                            <option value="Baru">Baru</option>
+                            <option value="Perpanjang">Perpanjang</option>
+                        </select>
+                        <small class="text-muted">Pilih <strong>Baru</strong> untuk peserta baru, atau <strong>Perpanjang</strong> untuk peserta lama (cek No. KTP).</small>
+                    </div>
+
+                    <!-- ===== PILIH KATEGORI TIM (TIM A / TIM B) — muncul setelah Jenis dipilih ===== -->
+                    <div class="mb-3 d-none" id="tipeTimBox">
+                        <label class="form-label fw-bold">Kategori TIM <span class="text-danger">*</span></label>
+                        <select id="frTipeTim" class="form-select">
+                            <option value="">-- Pilih Kategori TIM --</option>
+                            <option value="TIM A">TIM A</option>
+                            <option value="TIM B">TIM B</option>
+                        </select>
+                        <small class="text-muted">Pilih kategori Tanda Izin Mengemudi: <strong>TIM A</strong> atau <strong>TIM B</strong>.</small>
+                    </div>
+
+                    <!-- ===== BARU / EDIT: formulir data lengkap (kosong untuk "Baru") ===== -->
+                    <div id="formBaruBox" class="d-none">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">No. KTP <span class="text-danger">*</span></label>
+                            <input type="text" id="frNoKtp" class="form-control" maxlength="20" placeholder="16 digit NIK">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Nama Lengkap <span class="text-danger">*</span></label>
+                            <input type="text" id="frNama" class="form-control" placeholder="Nama sesuai KTP">
+                        </div>
+                    </div>
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Perusahaan <span class="text-danger">*</span></label>
+                            <select id="frPerusahaan" class="form-select"></select>
+                            <div class="input-group mt-2">
+                                <input type="text" id="frPerusahaanBaru" class="form-control form-control-sm" placeholder="Perusahaan baru? Ketik di sini">
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="addPerusahaanOption()">+ Tambah</button>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold">Jabatan <span class="text-danger">*</span></label>
+                            <input type="text" id="frJabatan" class="form-control" placeholder="Contoh: Pengemudi Towing Traktor">
+                        </div>
+                    </div>
+                    </div>
+
+                    <!-- ===== PERPANJANG: cek No. KTP peserta lama ===== -->
+                    <div id="formCekKtpBox" class="d-none">
+                        <label class="form-label fw-bold">No. KTP <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <input type="text" id="frKtpCari" class="form-control" maxlength="20" inputmode="numeric" placeholder="No. KTP peserta terdaftar" onkeydown="if(event.key==='Enter'){ event.preventDefault(); cekKtpPerpanjang(); }">
+                            <button type="button" class="btn btn-outline-primary" id="btnCekKtpPerpanjang" onclick="cekKtpPerpanjang()">Cek Data</button>
+                        </div>
+                        <div id="ktpCariMsg" class="small mt-2 text-muted"></div>
+                    </div>
+
+                    <!-- ===== PERPANJANG: data lama ditemukan (tampil otomatis) ===== -->
+                    <div id="formDataPerpanjangBox" class="d-none">
+                        <div class="alert alert-success py-2 mb-3" id="perpanjangInfo"></div>
+                    </div>
+
+                    <div id="uploadFieldsBox">
+                        <!-- Wrapper: field upload di-render dinamis by onJenisTimChange() -->
+                        <div class="row g-3" id="uploadFieldsRow"></div>
+                    </div>
+                    <div class="d-flex justify-content-end gap-2 mt-4">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary"><i class="bi bi-send"></i> Submit</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== MODAL SET MASA BERLAKU TIM (status jadi "TIM Sudah Diambil") ===== -->
+<div class="modal fade" id="masaModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-calendar-check"></i> Set Masa Berlaku TIM</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Personil: <strong id="masaModalNama">-</strong></p>
+                <label class="form-label fw-bold">Tanggal Berakhir Masa Berlaku TIM <span class="text-danger">*</span></label>
+                <input type="date" id="masaInput" class="form-control">
+                <div class="d-flex flex-wrap gap-1 mt-2">
+                    <span class="small text-muted align-self-center me-1">Cepat:</span>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setMasaCepat(1)">+1 Thn</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setMasaCepat(2)">+2 Thn</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setMasaCepat(3)">+3 Thn</button>
+                </div>
+                <div class="small text-muted mt-3">Setelah disimpan, status progres TIM berubah menjadi <span class="badge bg-primary">TIM Sudah Diambil</span>.</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-primary" id="btnSaveMasa" onclick="saveMasaBerlaku()"><i class="bi bi-check2-circle"></i> Simpan</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    // ===== Client & state =====
+    const sb = window.supabaseClient || _sb;
+    let TIM_DATA = [];           // data asli dari tabel peserta_ujian
+    let perpanjangRecord = null; // record lama hasil "Cek Data" No. KTP (mode Perpanjang)
+    let COMPANY_LIST = [         // daftar perusahaan dari pesertatim.html
+        'PT.Angkasa Pura Indonesia','PT.Gapura Angkasa','PT.Mora Sanel Lestari','PT.Prathita Titiannusantara',
+        'PT.Garuda Maintenance Facility Aeroasia','Lion Group','Batam Aero Teknik',
+        'PT.JAS Aero Engineering Services','PT.Parewa Citra Katering',
+        'PT.Prima Transportasi Servis Indonesia','PT.Gajayana Makmur Sejati',
+        'PT.Injourney Airport Service','PT.Angkasa Pura Kargo','PT.Angkasa Pura Solusi',
+        'Pemprov Riau','Imigrasi','Bea Cukai','Balai Karantina Kesehatan','Pertamina Patra Niaga'
+    ];
+
+    function esc(str){ return String(str==null?'':str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function safeParseMeta(row){
+        try {
+            if(!row || !row.meta) return {};
+            if(typeof row.meta === 'string') return JSON.parse(row.meta) || {};
+            return row.meta || {};
+        } catch(e){ return {}; }
+    }
+    // ===== Load data dari tabel peserta_ujian (terkoneksi admintim.html & pesertatim.html) =====
+    async function loadTIMData(){
+        const tbody = document.getElementById('timTableBody');
+        if(!tbody) return;
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4">Memuat data...</td></tr>';
+        try{
+            const { data, error } = await sb.from('peserta_ujian').select('*').order('created_at',{ascending:false});
+            if(error) throw error;
+            TIM_DATA = data || [];
+            renderTable();
+        }catch(err){
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-danger py-4">Gagal memuat: '+esc(err.message)+'</td></tr>';
+        }
+    }
+
+    // ===== Status badge progres TIM =====
+    function statusBadge(user){
+        const s = user.status || '';
+        const passed = !!user.is_passed;
+        if(s === 'DIAMBIL') return '<span class="badge bg-primary">TIM Sudah Diambil</span>';
+        if(s === 'COMPLETED' && passed) return '<span class="badge bg-success">Sudah Ujian</span>';
+        if(s === 'COMPLETED' && !passed) return '<span class="badge bg-danger">Sudah Ujian (Gagal)</span>';
+        if(s === 'APPROVED') return '<span class="badge bg-info text-dark">Tiket Terbit</span>';
+        if(s === 'REQUESTING') return '<span class="badge bg-warning text-dark">Menunggu Tiket</span>';
+        if(s === 'REGISTERED') return '<span class="badge bg-secondary">Draft</span>';
+        // Buat yang tidak punya status (dari halaman baru)
+        if(!s) return '<span class="badge bg-secondary">Draft</span>';
+        return '<span class="badge bg-secondary">'+esc(s)+'</span>';
+    }
+    // ===== Render daftar (dengan filter & data dari meta) =====
+    function renderTable(){
+        const tbody = document.getElementById('timTableBody');
+        if(!tbody) return;
+        const q = (document.getElementById('searchInput') ? document.getElementById('searchInput').value : '').toLowerCase().trim();
+        let rows = TIM_DATA.filter(u => {
+            if(!q) return true;
+            const nama = (u.nama||'').toLowerCase();
+            const per = (u.perusahaan||'').toLowerCase();
+            const jab = (u.jabatan||'').toLowerCase();
+            return nama.indexOf(q) > -1 || per.indexOf(q) > -1 || jab.indexOf(q) > -1;
+        });
+        if(rows.length === 0){
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">Belum ada data pendaftaran TIM.</td></tr>';
+            return;
+        }
+        let html = '';
+        rows.forEach((u, idx) => {
+            const meta = safeParseMeta(u);
+            const no = idx + 1;
+            const jenis = meta.jenis_tim || '-';
+            const tipe = meta.tipe_tim || ''; // Kategori TIM: TIM A / TIM B
+            // Sel masa berlaku: tanggal + tombol ubah, atau tombol "Set Tanggal"
+            // (menetapkan tanggal sekaligus mengubah status menjadi TIM Sudah Diambil)
+            const masaHtml = meta.masa_berlaku
+                ? esc(formatDate(meta.masa_berlaku)) +
+                  ' <button class="btn btn-sm btn-outline-secondary py-0 px-1 no-print" title="Ubah tanggal masa berlaku" onclick="openMasaModal(\''+u.id+'\')"><i class="bi bi-calendar-event"></i></button>'
+                : '<button class="btn btn-sm btn-outline-primary no-print" title="Set tanggal masa berlaku & ubah status jadi TIM Sudah Diambil" onclick="openMasaModal(\''+u.id+'\')"><i class="bi bi-calendar-plus"></i> Set Tanggal</button>';
+            const pelanggaran = meta.pelanggaran || '-';
+            const badge = statusBadge(u);
+            const namaLink = '<a href="#" onclick="viewDetail(\''+u.id+'\'); return false;" title="Lihat detail foto">'+esc(u.nama)+'</a>';
+            html += '<tr>'+
+                '<td class="ps-4">'+no+'</td>'+
+                '<td class="fw-bold">'+namaLink+'</td>'+
+                '<td>'+esc(u.perusahaan||'')+'</td>'+
+                '<td>'+esc(u.jabatan||'')+'</td>'+
+                '<td>'+(tipe?'<span class="badge bg-dark">'+esc(tipe)+'</span>':'-')+'</td>'+
+                '<td>'+badge+(jenis!=='-'?' <span class="badge bg-light text-primary border">'+esc(jenis)+'</span>':'')+'</td>'+
+                '<td class="text-nowrap">'+masaHtml+'</td>'+
+                '<td>'+esc(pelanggaran)+'</td>'+
+                '<td class="text-center no-print">'+
+                    '<button class="btn btn-sm btn-outline-primary me-1" title="Edit" onclick="openPendaftaranForm(\''+u.id+'\')"><i class="bi bi-pencil"></i></button>'+
+                    '<button class="btn btn-sm btn-outline-danger" title="Hapus" onclick="deletePendaftaran(\''+u.id+'\')"><i class="bi bi-trash"></i></button>'+
+                '</td>'+
+            '</tr>';
+        });
+        tbody.innerHTML = html;
+    }
+
+    function filterTable(){ renderTable(); }
+
+    function formatDate(d){
+        if(!d) return '';
+        // Parse 'YYYY-MM-DD' sebagai local (hindari offset UTC yang menggeser tanggal)
+        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(d));
+        if(m){
+            const dt = new Date(parseInt(m[1],10), parseInt(m[2],10)-1, parseInt(m[3],10));
+            return dt.toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' });
+        }
+        const dt = new Date(d);
+        if(isNaN(dt)) return String(d);
+        return dt.toLocaleDateString('id-ID', { day:'2-digit', month:'long', year:'numeric' });
+    }
+    // ===== Dropdown perusahaan =====
+    function populatePerusahaan(){
+        const sel = document.getElementById('frPerusahaan');
+        if(!sel) return;
+        const prev = sel.value;
+        sel.innerHTML = COMPANY_LIST.map(c => '<option>'+esc(c)+'</option>').join('') + '<option value="__other__">Lainnya (ketik di kolom bawah)</option>';
+        if(prev) sel.value = prev;
+    }
+    async function addPerusahaanOption(){
+        const input = document.getElementById('frPerusahaanBaru');
+        const sel = document.getElementById('frPerusahaan');
+        if(!input || !sel) return;
+        const v = (input.value||'').trim();
+        if(!v){ alert('Ketik nama perusahaan terlebih dahulu.'); return; }
+        const exists = COMPANY_LIST.some(c => c.toLowerCase() === v.toLowerCase());
+        if(exists){
+            alert('Perusahaan sudah ada di daftar.');
+            sel.value = COMPANY_LIST.find(c => c.toLowerCase() === v.toLowerCase());
+            input.value='';
+            return;
+        }
+        // Simpan ke database (tabel perusahaan_list) agar otomatis bertambah permanen
+        // dan muncul di semua halaman/perangkat.
+        const res = (window.amcAddPerusahaan ? await window.amcAddPerusahaan(v) : { error: null, duplicate: false });
+        if(res && res.error){
+            alert('Perusahaan ditambahkan ke daftar, tetapi GAGAL disimpan ke database.\n\n'+res.error.message+'\n\nPastikan tabel "perusahaan_list" sudah dibuat — lihat SETUP-PENDAFTARAN-TIM.md.');
+        }
+        COMPANY_LIST.push(v);
+        populatePerusahaan();
+        sel.value = v;
+        input.value = '';
+    }
+
+    // Ambil perusahaan tersimpan dari database & gabungkan ke daftar dropdown
+    async function mergePerusahaanFromDb(){
+        if(!window.amcFetchPerusahaanList) return;
+        const list = await window.amcFetchPerusahaanList();
+        list.forEach(function(nama){
+            if(nama && !COMPANY_LIST.some(c => c.toLowerCase() === nama.toLowerCase())){
+                COMPANY_LIST.push(nama);
+            }
+        });
+        populatePerusahaan();
+    }
+
+    // ===== Upload field dinamis berdasarkan Jenis TIM =====
+    // Baru       : upload Foto KTP + Foto SIM Aktif
+    // Perpanjang : upload Foto SIM Aktif + Foto TIM (lama)
+    function uploadHtmlKtpSim(){
+        return '<div class="col-md-6">'+
+                    '<label class="form-label fw-bold">Upload Foto KTP <span class="text-danger">*</span></label>'+
+                    '<input type="file" id="frFotoKtp" class="form-control" accept="image/*" onchange="previewFoto(this)">'+
+                '</div>'+
+                '<div class="col-md-6">'+
+                    '<label class="form-label fw-bold">Upload Foto SIM Aktif <span class="text-danger">*</span></label>'+
+                    '<input type="file" id="frFotoSim" class="form-control" accept="image/*" onchange="previewFoto(this)">'+
+                '</div>';
+    }
+    function uploadHtmlSimTim(){
+        return '<div class="col-md-6">'+
+                    '<label class="form-label fw-bold">Upload Foto SIM Aktif <span class="text-danger">*</span></label>'+
+                    '<input type="file" id="frFotoSim" class="form-control" accept="image/*" onchange="previewFoto(this)">'+
+                '</div>'+
+                '<div class="col-md-6">'+
+                    '<label class="form-label fw-bold">Upload Foto TIM (Lama) <span class="text-danger">*</span></label>'+
+                    '<input type="file" id="frFotoTim" class="form-control" accept="image/*" onchange="previewFoto(this)">'+
+                '</div>';
+    }
+    function onJenisTimChange(){
+        const jenis = document.getElementById('frJenisTim').value;
+        const row = document.getElementById('uploadFieldsRow');
+        if(!row) return;
+        const boxBaru = document.getElementById('formBaruBox');
+        const boxCek  = document.getElementById('formCekKtpBox');
+        const boxData = document.getElementById('formDataPerpanjangBox');
+        const boxTipe = document.getElementById('tipeTimBox');
+        const selTipe = document.getElementById('frTipeTim');
+
+        const sedangEdit = !!currentEditId;
+        // Mode tambah: buang hasil "Cek Data" bila jenis diubah dari Perpanjang
+        if(!sedangEdit && jenis !== 'Perpanjang'){ perpanjangRecord = null; }
+
+        // Awal: sembunyikan semua bagian & kolom upload
+        if(boxBaru) boxBaru.classList.add('d-none');
+        if(boxCek)  boxCek.classList.add('d-none');
+        if(boxData) boxData.classList.add('d-none');
+        row.innerHTML = '';
+
+        // Pilihan Kategori TIM (TIM A / TIM B) hanya muncul setelah Baru/Perpanjang dipilih
+        if(boxTipe && selTipe){
+            if(jenis === 'Baru' || jenis === 'Perpanjang'){
+                boxTipe.classList.remove('d-none');
+            } else {
+                boxTipe.classList.add('d-none');
+                selTipe.value = '';
+            }
+        }
+
+        if(jenis === 'Baru'){
+            // BARU: formulir kosong lengkap + upload Foto KTP & SIM Aktif
+            if(boxBaru) boxBaru.classList.remove('d-none');
+            row.innerHTML = uploadHtmlKtpSim();
+        } else if(jenis === 'Perpanjang'){
+            if(sedangEdit){
+                // EDIT data perpanjangan: formulir lengkap (terisi) + upload SIM & TIM
+                if(boxBaru) boxBaru.classList.remove('d-none');
+                row.innerHTML = uploadHtmlSimTim();
+            } else {
+                // TAMBAH (Perpanjang): tampilkan cek No. KTP dulu —
+                // data & upload muncul otomatis setelah No. KTP ditemukan
+                if(boxCek) boxCek.classList.remove('d-none');
+            }
+        }
+    }
+    function previewFoto(input){
+        if(!input || !input.files || !input.files[0]) return;
+        const f = input.files[0];
+        if(f.size > 2*1024*1024){ alert('Ukuran foto maksimal 2MB.'); input.value=''; return; }
+    }
+
+    // ===== Perpanjang: cek No. KTP peserta lama =====
+    async function cekKtpPerpanjang(){
+        const msg = document.getElementById('ktpCariMsg');
+        const input = document.getElementById('frKtpCari');
+        if(!msg || !input) return;
+        const ktp = (input.value || '').trim().replace(/\s+/g, '');
+        msg.className = 'small mt-2 text-muted';
+        msg.innerHTML = '';
+        if(!ktp || ktp.length < 5){
+            msg.className = 'small mt-2 text-danger';
+            msg.innerHTML = 'Masukkan No. KTP yang valid (minimal 5 digit).';
+            return;
+        }
+        const btn = document.getElementById('btnCekKtpPerpanjang');
+        const orig = btn ? btn.innerHTML : 'Cek Data';
+        if(btn){ btn.disabled = true; btn.innerHTML = '⏳ Memeriksa...'; }
+        try{
+            const { data, error } = await sb.from('peserta_ujian')
+                .select('*')
+                .filter('meta->>no_ktp', 'eq', ktp)
+                .order('created_at', { ascending: false })
+                .limit(1);
+            if(error){
+                const emsg = String(error.message||'').toLowerCase();
+                if(emsg.indexOf('meta') !== -1 && (emsg.indexOf('column') !== -1 || emsg.indexOf('does not exist') !== -1 || emsg.indexOf('pgrst204') !== -1)){
+                    msg.className = 'small mt-2 text-danger';
+                    msg.innerHTML = 'Kolom "meta" belum tersedia di database. Jalankan ALTER TABLE sesuai SETUP-PENDAFTARAN-TIM.md.';
+                } else {
+                    throw error;
+                }
+                return;
+            }
+            if(!data || data.length === 0){
+                msg.className = 'small mt-2 text-danger';
+                msg.innerHTML = 'No. KTP <strong>'+esc(ktp)+'</strong> belum terdaftar. Tidak ada data pendaftaran untuk No. KTP ini.';
+                return;
+            }
+            tampilkanDataPerpanjang(data[0]);
+        }catch(err){
+            msg.className = 'small mt-2 text-danger';
+            msg.innerHTML = 'Gagal memeriksa data: '+esc(err.message || err);
+        }finally{
+            if(btn){ btn.disabled = false; btn.innerHTML = orig; }
+        }
+    }
+
+    // Data lama ditemukan -> tampil otomatis; cukup upload SIM Aktif & TIM (lama)
+    function tampilkanDataPerpanjang(u){
+        perpanjangRecord = u;
+        const meta = safeParseMeta(u);
+
+        // Isi field tersembunyi agar Submit memakai data lama (tidak perlu diketik ulang)
+        document.getElementById('frNoKtp').value = meta.no_ktp || '';
+        document.getElementById('frNama').value = u.nama || '';
+        document.getElementById('frJabatan').value = u.jabatan || '';
+        const sel = document.getElementById('frPerusahaan');
+        const valPer = u.perusahaan || '';
+        if(valPer && COMPANY_LIST.indexOf(valPer) === -1) COMPANY_LIST.push(valPer);
+        populatePerusahaan();
+        sel.value = valPer;
+        // Pertahankan dokumen lama (upload baru bersifat mengganti bila dipilih)
+        editUrlState.fotoKtp = meta.foto_ktp_url || '';
+        editUrlState.fotoSim = u.foto_sim_url || '';
+        editUrlState.fotoTim = meta.foto_tim_url || '';
+
+        // Default-kan Kategori TIM (TIM A / TIM B) sesuai data lama (bisa diubah bila perlu)
+        const selTipe = document.getElementById('frTipeTim');
+        if(selTipe) selTipe.value = meta.tipe_tim || '';
+
+        // Ringkasan data lama
+        const masa = meta.masa_berlaku ? formatDate(meta.masa_berlaku) : '-';
+        document.getElementById('perpanjangInfo').innerHTML =
+            '<div class="fw-bold mb-1"><i class="bi bi-check-circle-fill"></i> Data ditemukan!</div>'+
+            '<div class="small"><strong>'+esc(u.nama||'')+'</strong> &middot; '+esc(u.perusahaan||'')+' &middot; '+esc(u.jabatan||'')+'</div>'+
+            '<div class="small text-muted mt-1">Jenis lama: '+esc(meta.jenis_tim||'-')+' &middot; Status: '+statusBadge(u)+' &middot; Masa berlaku lama: '+esc(masa)+'</div>'+
+            '<div class="small mt-1">Cukup upload <strong>Foto SIM Aktif</strong> dan <strong>Foto TIM (lama)</strong> di bawah, lalu klik Submit.</div>';
+
+        // Tampilkan ringkasan + kolom upload SIM & TIM
+        document.getElementById('formCekKtpBox').classList.add('d-none');
+        document.getElementById('formDataPerpanjangBox').classList.remove('d-none');
+        document.getElementById('uploadFieldsRow').innerHTML = uploadHtmlSimTim();
+    }
+    // ===== Buka modal (tambah / edit) =====
+    let currentEditId = null;
+    let editUrlState = { fotoKtp:'', fotoSim:'', fotoTim:'' };
+    function openPendaftaranForm(id){
+        currentEditId = id;
+        perpanjangRecord = null;
+        editUrlState = { fotoKtp:'', fotoSim:'', fotoTim:'' };
+        document.getElementById('pendaftaranModalTitle').innerText = id ? 'Edit Data TIM' : 'Tambah Data TIM';
+        // Reset form — mode tambah: awalnya HANYA pilihan Jenis TIM yang tampil
+        document.getElementById('frJenisTim').value = id ? 'Baru' : '';
+        document.getElementById('frNoKtp').value='';
+        document.getElementById('frNama').value='';
+        document.getElementById('frJabatan').value='';
+        document.getElementById('frPerusahaanBaru').value='';
+        const selTipeReset = document.getElementById('frTipeTim');
+        if(selTipeReset) selTipeReset.value = '';
+        const cariEl = document.getElementById('frKtpCari');
+        if(cariEl) cariEl.value = '';
+        const cariMsg = document.getElementById('ktpCariMsg');
+        if(cariMsg){ cariMsg.className = 'small mt-2 text-muted'; cariMsg.innerHTML = ''; }
+        const infoEl = document.getElementById('perpanjangInfo');
+        if(infoEl) infoEl.innerHTML = '';
+        populatePerusahaan();
+        document.getElementById('frPerusahaan').value = COMPANY_LIST[0] || '';
+        onJenisTimChange();
+        if(id){
+            const u = TIM_DATA.find(x => x.id === id);
+            if(u){
+                const meta = safeParseMeta(u);
+                document.getElementById('frJenisTim').value = meta.jenis_tim || 'Baru';
+                const selTipeEdit = document.getElementById('frTipeTim');
+                if(selTipeEdit) selTipeEdit.value = meta.tipe_tim || '';
+                document.getElementById('frNoKtp').value = meta.no_ktp || '';
+                document.getElementById('frNama').value = u.nama || '';
+                document.getElementById('frJabatan').value = u.jabatan || '';
+                // perusahaan
+                const sel = document.getElementById('frPerusahaan');
+                const valPer = u.perusahaan || '';
+                if(COMPANY_LIST.indexOf(valPer) === -1 && valPer){
+                    COMPANY_LIST.push(valPer);
+                }
+                populatePerusahaan();
+                sel.value = valPer;
+                // Simpan file lama (url) untuk dipertahankan saat submit
+                editUrlState.fotoKtp = meta.foto_ktp_url || '';
+                editUrlState.fotoSim = u.foto_sim_url || '';
+                editUrlState.fotoTim = meta.foto_tim_url || '';
+                onJenisTimChange();
+            }
+        }
+        document.body.classList.add('form-open');
+        const m = new bootstrap.Modal(document.getElementById('pendaftaranModal'));
+        m.show();
+    }
+    // ===== Upload file ke bucket =====
+    async function uploadFoto(file, prefix){
+        if(!file) return null;
+        const ext = (file.name || '').split('.').pop() || 'jpg';
+        const fName = prefix + '_' + Date.now() + '_' + Math.random().toString(36).slice(2,8) + '.' + ext.replace(/[^a-zA-Z0-9]/g,'');
+        const { error } = await sb.storage.from('foto_sim').upload(fName, file);
+        if(error) throw new Error('Gagal upload foto ('+prefix+'): '+error.message);
+        const { data: urlData } = sb.storage.from('foto_sim').getPublicUrl(fName);
+        return urlData.publicUrl;
+    }
+
+    // ===== Submit form =====
+    async function submitPendaftaran(e){
+        e.preventDefault();
+        const btn = e.target.querySelector('button[type="submit"]');
+        if(!btn) return;
+        const orig = btn.innerHTML;
+        btn.disabled = true; btn.innerHTML = '⏳ Menyimpan...';
+
+        // Ambil nilai
+        const jenis = document.getElementById('frJenisTim').value;
+        const noKtp = document.getElementById('frNoKtp').value.trim();
+        const nama = document.getElementById('frNama').value.trim();
+        const jabatan = document.getElementById('frJabatan').value.trim();
+        let perusahaan = document.getElementById('frPerusahaan').value;
+        const perusahaanBaru = document.getElementById('frPerusahaanBaru').value.trim();
+        if(!perusahaan || perusahaan === '__other__') perusahaan = perusahaanBaru;
+
+        if(!jenis){ alert('Pilih Jenis TIM (Baru / Perpanjang) terlebih dahulu.'); btn.disabled=false; btn.innerHTML=orig; return; }
+        const tipeTim = (document.getElementById('frTipeTim') ? document.getElementById('frTipeTim').value : '').trim();
+        if(!tipeTim){ alert('Pilih Kategori TIM (TIM A / TIM B) terlebih dahulu.'); btn.disabled=false; btn.innerHTML=orig; return; }
+        if(jenis==='Perpanjang' && !perpanjangRecord && !currentEditId){ alert('Untuk Perpanjang: masukkan No. KTP lama lalu klik "Cek Data" hingga data peserta ditemukan.'); btn.disabled=false; btn.innerHTML=orig; return; }
+        if(!nama || !perusahaan || !jabatan) { alert('Isi nama, perusahaan, dan jabatan.'); btn.disabled=false; btn.innerHTML=orig; return; }
+        if(noKtp && noKtp.length < 5){ alert('No. KTP terlalu pendek.'); btn.disabled=false; btn.innerHTML=orig; return; }
+
+        // File upload
+        const fKtp = document.getElementById('frFotoKtp');
+        const fSim = document.getElementById('frFotoSim');
+        const fTim = document.getElementById('frFotoTim');
+        const fotoKtp = (jenis==='Baru') ? (fKtp ? fKtp.files[0] : null) : null;
+        const fotoSim = fSim ? fSim.files[0] : null;
+        const fotoTim = (jenis==='Perpanjang') ? (fTim ? fTim.files[0] : null) : null;
+
+        // Validasi dokumen (wajib bila belum ada file lama / mode baru)
+        if(jenis==='Baru' && !fotoKtp && !editUrlState.fotoKtp){ alert('Wajib upload Foto KTP.'); btn.disabled=false; btn.innerHTML=orig; return; }
+        if(jenis==='Baru' && !fotoSim && !editUrlState.fotoSim){ alert('Wajib upload Foto SIM Aktif.'); btn.disabled=false; btn.innerHTML=orig; return; }
+        if(jenis==='Perpanjang' && !fotoSim && !editUrlState.fotoSim){ alert('Wajib upload Foto SIM Aktif.'); btn.disabled=false; btn.innerHTML=orig; return; }
+        if(jenis==='Perpanjang' && !fotoTim && !editUrlState.fotoTim){ alert('Wajib upload Foto TIM (lama).'); btn.disabled=false; btn.innerHTML=orig; return; }
+
+        try{
+            // Upload baru (hanya yang di-seleksi)
+            const fotoKtpUrl = fotoKtp ? await uploadFoto(fotoKtp, 'ktp') : null;
+            const fotoSimUrl = fotoSim ? await uploadFoto(fotoSim, 'sim') : null;
+            const fotoTimUrl = fotoTim ? await uploadFoto(fotoTim, 'tim') : null;
+
+            // Target simpan: Perpanjang (tambah data) -> record lama hasil "Cek Data";
+            // mode edit -> record yang diedit; selain itu -> insert baru
+            const targetId = perpanjangRecord ? perpanjangRecord.id : currentEditId;
+            // Data meta — masa berlaku & pelanggaran sudah TIDAK diisi lewat form;
+            // saat edit/perpanjang, pertahankan nilai lama yang sudah tersimpan
+            const oldRow = targetId ? (TIM_DATA.find(x=>x.id===targetId) || null) : null;
+            const oldMeta = oldRow ? safeParseMeta(oldRow) : {};
+            const meta = {
+                jenis_tim: jenis,
+                tipe_tim: tipeTim,
+                no_ktp: noKtp,
+                masa_berlaku: oldMeta.masa_berlaku || '',
+                pelanggaran: oldMeta.pelanggaran || ''
+            };
+            // Pertahankan file lama bila tidak diganti
+            meta.foto_ktp_url = fotoKtpUrl || editUrlState.fotoKtp || '';
+            meta.foto_tim_url = fotoTimUrl || editUrlState.fotoTim || '';
+
+            const payload = {
+                nama: nama,
+                perusahaan: perusahaan,
+                jabatan: jabatan,
+                foto_sim_url: fotoSimUrl || editUrlState.fotoSim || '',
+                meta: meta
+            };
+            // Perpanjangan lewat "Tambah Data": UPDATE record lama & mulai siklus baru (Draft).
+            // Status/tiket/hasil ujian lama di-reset agar peserta bisa mengulang alur ujian.
+            if(perpanjangRecord){
+                payload.status = 'REGISTERED';
+                payload.ticket_code = null;
+                payload.score = null;
+                payload.is_passed = null;
+            }
+            let res;
+            let notaMeta = false;
+            const kirim = async (pl) => {
+                if(targetId){
+                    return await sb.from('peserta_ujian').update(pl).eq('id', targetId);
+                }
+                // Draft (belum ujian)
+                return await sb.from('peserta_ujian').insert([Object.assign({ status:'REGISTERED' }, pl)]).select();
+            };
+            res = await kirim(payload);
+            if(res.error && (String(res.error.message||'').toLowerCase().indexOf('meta') !== -1 || String(res.error.message||'').indexOf('42703') !== -1)){
+                // Kolom meta belum ada -> ulangi tanpa meta agar tetap tersimpan
+                const pl2 = Object.assign({}, payload);
+                delete pl2.meta;
+                res = await kirim(pl2);
+                notaMeta = true;
+            }
+            if(res.error) throw res.error;
+
+            alert('Data TIM berhasil disimpan.' + (notaMeta
+                ? '\n\nCatatan: kolom "meta" belum ada di tabel peserta_ujian. Data tambahan (No KTP, foto KTP/TIM, dll.) belum tersimpan. Jalankan ALTER TABLE di SETUP-PENDAFTARAN-TIM.md agar tersimpan lengkap.'
+                : ''));
+            const modal = bootstrap.Modal.getInstance(document.getElementById('pendaftaranModal'));
+            if(modal) modal.hide();
+            document.body.classList.remove('form-open');
+            loadTIMData();
+        }catch(err){
+            alert('Gagal menyimpan: '+err.message);
+            console.error(err);
+        }finally{
+            btn.disabled=false; btn.innerHTML=orig;
+        }
+    }
+
+    // ===== Set Masa Berlaku TIM -> status berubah menjadi "TIM Sudah Diambil" =====
+    let masaTargetId = null;
+    function toLocalISO(d){
+        const p = function(n){ return String(n).padStart(2,'0'); };
+        return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
+    }
+    function setMasaCepat(thn){
+        const d = new Date();
+        d.setFullYear(d.getFullYear()+parseInt(thn,10));
+        document.getElementById('masaInput').value = toLocalISO(d);
+    }
+    function openMasaModal(id){
+        const u = TIM_DATA.find(x=>x.id===id);
+        if(!u) return;
+        masaTargetId = id;
+        const meta = safeParseMeta(u);
+        document.getElementById('masaModalNama').innerText = u.nama || '-';
+        const inp = document.getElementById('masaInput');
+        // Default: tanggal lama bila sudah ada, selain itu +1 tahun dari hari ini
+        let def = meta.masa_berlaku ? String(meta.masa_berlaku).substring(0,10) : '';
+        if(!def){
+            const d = new Date();
+            d.setFullYear(d.getFullYear()+1);
+            def = toLocalISO(d);
+        }
+        inp.value = def;
+        const m = new bootstrap.Modal(document.getElementById('masaModal'));
+        m.show();
+    }
+    async function saveMasaBerlaku(){
+        if(!masaTargetId) return;
+        const inp = document.getElementById('masaInput');
+        const val = inp ? inp.value : '';
+        if(!val){ alert('Pilih tanggal masa berlaku TIM terlebih dahulu.'); return; }
+        const u = TIM_DATA.find(x=>x.id===masaTargetId);
+        if(!u) return;
+        const btn = document.getElementById('btnSaveMasa');
+        if(btn){ btn.disabled = true; }
+        try{
+            const meta = safeParseMeta(u);
+            meta.masa_berlaku = val;
+            // Simpan tanggal masa berlaku + ubah status progres menjadi TIM Sudah Diambil
+            let res = await sb.from('peserta_ujian')
+                .update({ status:'DIAMBIL', meta: meta })
+                .eq('id', masaTargetId);
+            if(res.error && (String(res.error.message||'').toLowerCase().indexOf('meta') !== -1 || String(res.error.message||'').indexOf('42703') !== -1)){
+                // Kolom meta belum ada -> simpan status saja (tanggal tidak tersimpan)
+                res = await sb.from('peserta_ujian')
+                    .update({ status:'DIAMBIL' })
+                    .eq('id', masaTargetId);
+                if(!res.error){
+                    alert('Status diubah menjadi TIM Sudah Diambil.\n\nCatatan: kolom "meta" belum ada di tabel peserta_ujian, jadi tanggal masa berlaku tidak tersimpan. Jalankan ALTER TABLE di SETUP-PENDAFTARAN-TIM.md.');
+                }
+            }
+            if(res.error) throw res.error;
+            const modal = bootstrap.Modal.getInstance(document.getElementById('masaModal'));
+            if(modal) modal.hide();
+            loadTIMData();
+        }catch(err){
+            alert('Gagal menyimpan masa berlaku: '+err.message);
+        }finally{
+            if(btn){ btn.disabled = false; }
+        }
+    }
+
+    // ===== Hapus data =====
+    async function deletePendaftaran(id){
+        const u = TIM_DATA.find(x => x.id === id);
+        if(!u) return;
+        if(!confirm('Hapus pendaftaran TIM untuk "'+u.nama+'"?')) return;
+        try{
+            const { error } = await sb.from('peserta_ujian').delete().eq('id', id);
+            if(error) throw error;
+            alert('Data berhasil dihapus.');
+            loadTIMData();
+        }catch(err){ alert('Gagal hapus: '+err.message); }
+    }
+
+    // ===== Lihat detail foto-dokumen =====
+    function viewDetail(id){
+        const u = TIM_DATA.find(x => x.id === id);
+        if(!u){ return; }
+        const meta = safeParseMeta(u);
+        let rows = '';
+        const doc = [
+            { label:'Foto KTP', url: meta.foto_ktp_url },
+            { label:'Foto SIM', url: u.foto_sim_url },
+            { label:'Foto TIM', url: meta.foto_tim_url }
+        ];
+        doc.forEach(d => {
+            rows += '<div class="text-center mb-3">' +
+                '<div class="fw-bold mb-1">'+esc(d.label)+'</div>' +
+                (d.url
+                    ? '<img src="'+esc(d.url)+'" class="img-fluid rounded border" style="max-height:180px" alt="'+esc(d.label)+'">'
+                    : '<div class="text-muted small">Belum ada</div>') +
+            '</div>';
+        });
+        const modal = document.createElement('div');
+        modal.className='modal fade';
+        modal.innerHTML='<div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Dokumen '+esc(u.nama)+'</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body">'+rows+'</div><div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Tutup</button></div></div></div>';
+        document.body.appendChild(modal);
+        const bs = new bootstrap.Modal(modal);
+        bs.show();
+        modal.addEventListener('hidden.bs.modal', function(){ modal.remove(); });
+    }
+
+    // ===== Sidebar (dinamis, sama seperti halaman lain) =====
+    function toggleSidebar(){ const s=document.getElementById('sidebar'); if(!s)return; s.classList.toggle('collapsed'); updateSidebarToggleIcon(); }
+    function initSidebar(){ const s=document.getElementById('sidebar'); if(!s)return; let st='collapsed'; try{const v=localStorage.getItem('amcSidebarState'); if(v==='expanded'||v==='collapsed')st=v;}catch(e){} s.classList.toggle('collapsed',st==='collapsed'); updateSidebarToggleIcon(); }
+    function updateSidebarToggleIcon(){ const s=document.getElementById('sidebar'); const ic=document.querySelector('.sidebar-toggle-btn i'); if(!s||!ic)return; const c=s.classList.contains('collapsed'); ic.className=c?'bi bi-chevron-double-right':'bi bi-chevron-double-left'; try{localStorage.setItem('amcSidebarState',c?'collapsed':'expanded');}catch(e){} }
+    function setActiveMenu(el){ document.querySelectorAll('#sidebar ul li a').forEach(l=>l.classList.remove('active')); if(el) el.classList.add('active'); }
+
+    // ===== Proteksi sesi (sama pola dengan halaman lain) =====
+    async function checkAuth(){ try{ const { data:{ session } } = await sb.auth.getSession(); if(!session) window.location.href='index.html'; }catch(e){ window.location.href='index.html'; } }
+
+    // ===== Init =====
+    document.addEventListener('DOMContentLoaded', function(){
+        initSidebar();
+        checkAuth();
+        loadTIMData();
+        mergePerusahaanFromDb();   // gabungkan perusahaan tersimpan (database) ke dropdown
+        document.getElementById('pendaftaranForm').addEventListener('submit', submitPendaftaran);
+        document.getElementById('pendaftaranModal').addEventListener('hidden.bs.modal', function(){ document.body.classList.remove('form-open'); });
+    });
+</script>
+</body>
+</html>

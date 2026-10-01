@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ujian TIM Sisi Udara - Peserta</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
     <style>
         .step-section { display: none; }
         .active-section { display: block; }
@@ -18,9 +19,24 @@
         <div class="col-md-8">
             <h3 class="text-center mb-4 text-primary">Ujian TIM SSKII PKU</h3>
 
-            <div id="step-register" class="step-section active-section">
+            <!-- ===== LANGKAH 0: CEK NO. KTP (HALAMAN AWAL) ===== -->
+            <div id="step-ktp" class="step-section active-section">
+                <div class="card p-4">
+                    <h5 class="card-title mb-3">Cek Pendaftaran TIM</h5>
+                    <div id="ktpMsg" class="alert d-none" role="alert"></div>
+                    <div class="mb-3">
+                        <label class="form-label">No. KTP <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control form-control-lg text-center" id="inputKtp" maxlength="20" inputmode="numeric" placeholder="Masukkan No. KTP (NIK)" autocomplete="off">
+                    </div>
+                    <small class="text-muted d-block mb-3">Masukkan No. KTP yang sudah didaftarkan Admin melalui halaman <strong>Pendaftaran TIM</strong>. Jika belum terdaftar, data tidak akan ditemukan.</small>
+                    <button class="btn btn-primary w-100" id="btn-cek-ktp" type="button">Cek Data Pendaftaran</button>
+                </div>
+            </div>
+
+            <div id="step-register" class="step-section">
                 <div class="card p-4">
                     <h5 class="card-title mb-3">Registrasi</h5>
+                    <div id="dataPendaftaranInfo" class="alert d-none"></div>
                     <form id="form-register">
                         <div class="mb-3">
                             <label class="form-label">Nama Lengkap</label>
@@ -35,6 +51,7 @@
                                 <label class="form-label">Nama Perusahaan</label>
                                 <select id="perusahaan" class="form-select" required>
                                     <option value="">--Pilih Perusahaan --</option>
+                                    <option value="Injourney Airport">PT.Angkasa Pura Indonesia</option>
                                     <option value="gapura">PT.Gapura Angkasa</option>
                                     <option value="Morasanel">PT.Mora Sanel Lestari</option>
                                     <option value="PTN">PT.Prathita Titiannusantara</option>
@@ -65,9 +82,11 @@
                                 <input type="text" class="form-control" id="jabatan" required>
                             </div>
                         </div>
-                        <div class="mb-3">
+                        <div class="mb-3" id="fotoSimWrap">
                             <label class="form-label">Upload Foto SIM</label>
                             <input type="file" class="form-control" id="fotoSim" accept="image/*" required>
+                            <small class="text-muted" id="fotoSimNote">Upload foto SIM yang masih aktif.</small>
+                            <div id="fotoSimPreview"></div>
                         </div>
                         <button type="button" class="btn btn-primary w-100" id="btn-register">Submit Data</button>
                     </form>
@@ -77,7 +96,8 @@
             <div id="step-ticket" class="step-section">
                 <div class="card p-4 text-center">
                     <h5 class="mb-3">Verifikasi Ujian</h5>
-                    
+                    <div id="ticketInfo" class="alert alert-secondary small py-2 text-start d-none"></div>
+
                     <div class="alert alert-warning">
                         <strong>Langkah 1:</strong> Klik tombol di bawah agar nama Anda muncul di Dashboard Admin.
                     </div>
@@ -93,6 +113,7 @@
                     <div class="mb-3 text-start">
                         <label class="form-label">Masukkan Kode Tiket</label>
                         <input type="text" class="form-control form-control-lg text-center text-uppercase" id="input-ticket" placeholder="CONTOH: TIM-1234">
+                        <small class="text-muted d-block mt-1">Kode tiket berlaku <strong>2 menit</strong> setelah diterbitkan Admin — segera masukkan. Lewat dari itu, kode otomatis hangus dan Anda harus request ulang.</small>
                     </div>
                     <button class="btn btn-success w-100" id="btn-validate">Mulai Ujian</button>
                 </div>
@@ -129,6 +150,279 @@
 <script src="assets/logic.js"></script>
 
 <script>
+    // ===== CEK NO. KTP (HALAMAN AWAL) — cari data dari Pendaftaran TIM =====
+    // Data pendaftaran disimpan Admin di halaman pendaftaran-tim.html ke tabel
+    // "peserta_ujian" dengan No. KTP di dalam kolom meta (meta->no_ktp).
+    let pendaftaranRecord = null;   // record peserta_ujian hasil pencarian No. KTP
+
+    function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function safeParseMeta(row){
+        try {
+            if(!row || !row.meta) return {};
+            if(typeof row.meta === 'string') return JSON.parse(row.meta) || {};
+            return row.meta || {};
+        } catch(e){ return {}; }
+    }
+    function isMetaErr(err){
+        if(!err) return false;
+        const msg = (String(err.message||'')+' '+String(err.details||'')+' '+String(err.hint||'')).toLowerCase();
+        return err.code === '42703' || (msg.indexOf('meta') !== -1 && (msg.indexOf('column') !== -1 || msg.indexOf('does not exist') !== -1 || msg.indexOf('pgrst204') !== -1));
+    }
+    function showKtpMsg(html, kind){
+        const el = document.getElementById('ktpMsg');
+        if(!el) return;
+        el.className = 'alert alert-' + (kind || 'danger');
+        el.innerHTML = html;
+    }
+    function hideKtpMsg(){
+        const el = document.getElementById('ktpMsg');
+        if(el){ el.className = 'alert d-none'; el.innerHTML = ''; }
+    }
+    function statusLabel(u){
+        const s = u.status || '';
+        if(s === 'DIAMBIL') return '<span class="badge bg-primary">TIM Sudah Diambil</span>';
+        if(s === 'COMPLETED') return u.is_passed ? '<span class="badge bg-success">Sudah Ujian &middot; LULUS</span>' : '<span class="badge bg-danger">Sudah Ujian &middot; GAGAL</span>';
+        if(s === 'APPROVED') return '<span class="badge bg-info text-dark">Tiket Terbit</span>';
+        if(s === 'REQUESTING') return '<span class="badge bg-warning text-dark">Menunggu Tiket</span>';
+        return '<span class="badge bg-secondary">Draft</span>';
+    }
+
+    async function cekKtp(){
+        const input = document.getElementById('inputKtp');
+        const ktp = (input.value || '').trim().replace(/\s+/g, '');
+        hideKtpMsg();
+        if(!ktp || ktp.length < 5){ showKtpMsg('Masukkan No. KTP yang valid (minimal 5 digit).', 'warning'); return; }
+
+        const btn = document.getElementById('btn-cek-ktp');
+        const orig = btn.innerHTML;
+        btn.disabled = true; btn.innerHTML = '⏳ Memeriksa...';
+        try{
+            const sb = window.supabaseClient || window._sb;
+            // Cari data pendaftaran (dari pendaftaran-tim.html) berdasarkan meta->no_ktp
+            const { data, error } = await sb.from('peserta_ujian')
+                .select('*')
+                .filter('meta->>no_ktp', 'eq', ktp)
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if(error && isMetaErr(error)){
+                showKtpMsg('Data pendaftaran tidak ditemukan.<br><small class="d-block mt-1">Kolom <code>meta</code> belum tersedia di database. Pastikan pendaftaran dilakukan lewat halaman <strong>Pendaftaran TIM</strong> dan jalankan ALTER TABLE sesuai <code>SETUP-PENDAFTARAN-TIM.md</code>.</small>', 'danger');
+                return;
+            }
+            if(error) throw error;
+
+            if(!data || data.length === 0){
+                showKtpMsg('No. KTP <strong>'+esc(ktp)+'</strong> <strong>belum terdaftar</strong>. Tidak ada data pendaftaran TIM untuk No. KTP ini.<br><small class="d-block mt-1">Silakan hubungi Admin untuk didaftarkan lewat halaman <strong>Pendaftaran TIM</strong>.</small>', 'danger');
+                return;
+            }
+            prefillRegistrasi(data[0]);
+        }catch(err){
+            showKtpMsg('Gagal memeriksa data: '+esc(err.message || err), 'danger');
+            console.error(err);
+        }finally{
+            btn.disabled = false; btn.innerHTML = orig;
+        }
+    }
+
+    // ===== Form registrasi otomatis muncul & terisi sesuai data pendaftaran awal =====
+    function prefillRegistrasi(u){
+        pendaftaranRecord = u;
+        const meta = safeParseMeta(u);
+
+        // Info data pendaftaran yang ditemukan
+        const info = document.getElementById('dataPendaftaranInfo');
+        info.className = 'alert alert-success mb-3';
+        info.innerHTML =
+            '<div class="fw-bold mb-1"><i class="bi bi-check-circle-fill"></i> Data pendaftaran ditemukan!</div>' +
+            '<div class="small">No. KTP: <strong>'+esc(meta.no_ktp || '-')+'</strong> &middot; Jenis TIM: <strong>'+esc(meta.jenis_tim || '-')+'</strong> &middot; Status: '+statusLabel(u)+'</div>' +
+            '<div class="small text-muted mt-1">Periksa data di bawah, lengkapi <strong>Alamat</strong>, lalu klik <strong>Submit Data</strong> untuk lanjut ke halaman request tiket.</div>';
+
+        // Isi otomatis field sesuai data pendaftaran awal
+        document.getElementById('nama').value = u.nama || '';
+        document.getElementById('alamat').value = u.alamat || '';
+        document.getElementById('jabatan').value = u.jabatan || '';
+
+        // Perusahaan: cocokkan berdasarkan TEKS opsi (data pendaftaran menyimpan nama lengkap)
+        const sel = document.getElementById('perusahaan');
+        const valPer = String(u.perusahaan || '').trim();
+        if(valPer){
+            let matched = false;
+            Array.from(sel.options).forEach(function(opt){
+                if(opt.text.trim().toLowerCase() === valPer.toLowerCase()){ sel.value = opt.value; matched = true; }
+            });
+            if(!matched){
+                const opt = document.createElement('option');
+                opt.value = valPer;
+                opt.text = valPer;
+                sel.appendChild(opt);
+                sel.value = valPer;
+            }
+        }
+
+        // Foto SIM: bila sudah terdaftar saat pendaftaran, upload menjadi opsional
+        const fotoInput = document.getElementById('fotoSim');
+        const note = document.getElementById('fotoSimNote');
+        const preview = document.getElementById('fotoSimPreview');
+        if(u.foto_sim_url){
+            fotoInput.required = false;
+            if(note) note.innerHTML = 'Foto SIM sudah terdaftar saat pendaftaran — upload ulang hanya jika ingin mengganti.';
+            if(preview) preview.innerHTML = '<img src="'+esc(u.foto_sim_url)+'" alt="Foto SIM terdaftar" class="img-fluid rounded border mt-2" style="max-height:140px">';
+        } else {
+            fotoInput.required = true;
+            if(note) note.innerHTML = 'Foto SIM belum terdaftar — wajib upload.';
+            if(preview) preview.innerHTML = '';
+        }
+
+        switchStep('step-register');
+    }
+
+    // ===== Submit: UPDATE record pendaftaran yang sudah ada (bukan insert baru) =====
+    async function submitRegistrasi(){
+        if(!pendaftaranRecord){
+            alert('Data pendaftaran belum ditemukan. Masukkan No. KTP terlebih dahulu.');
+            return;
+        }
+        const btn = document.getElementById('btn-register');
+        const orig = btn.innerHTML;
+        btn.disabled = true; btn.innerHTML = '⏳ Sedang Mengupload...';
+        try{
+            const sb = window.supabaseClient || window._sb;
+            const nama = document.getElementById('nama').value.trim();
+            const alamat = document.getElementById('alamat').value.trim();
+            const jabatan = document.getElementById('jabatan').value.trim();
+            const sel = document.getElementById('perusahaan');
+            if(!sel.value){ throw new Error('Pilih perusahaan terlebih dahulu.'); }
+            const perusahaanText = sel.options[sel.selectedIndex].text.trim();
+
+            if(!nama) throw new Error('Isi nama lengkap.');
+            if(!alamat) throw new Error('Isi alamat.');
+            if(!jabatan) throw new Error('Isi jabatan.');
+
+            // Upload foto SIM baru (opsional bila sudah ada saat pendaftaran)
+            const fileInput = document.getElementById('fotoSim');
+            const file = fileInput.files[0];
+            let fotoUrl = pendaftaranRecord.foto_sim_url || '';
+            if(file){
+                const fileName = 'sim_' + Date.now() + '_' + file.name.replace(/[^a-zA-Z0-9.]/g, '');
+                const { error: uploadError } = await sb.storage.from('foto_sim').upload(fileName, file);
+                if(uploadError) throw new Error('Gagal Upload Foto: ' + uploadError.message);
+                const { data: urlData } = sb.storage.from('foto_sim').getPublicUrl(fileName);
+                fotoUrl = urlData.publicUrl;
+            }
+            if(!fotoUrl) throw new Error('Wajib upload foto SIM!');
+
+            // Update record pendaftaran (status & tiket yang sudah ada dipertahankan)
+            const { error: updError } = await sb.from('peserta_ujian')
+                .update({
+                    nama: nama,
+                    alamat: alamat,
+                    perusahaan: perusahaanText,
+                    jabatan: jabatan,
+                    foto_sim_url: fotoUrl
+                })
+                .eq('id', pendaftaranRecord.id);
+            if(updError) throw new Error('Gagal Simpan Data: ' + updError.message);
+
+            // Lanjut ke halaman request tiket dengan sesi record pendaftaran yang sama
+            sessionStorage.setItem('mySessionId', pendaftaranRecord.id);
+            // Simpan sesi di localStorage: jika jendela ditutup lalu dibuka lagi
+            // di device (browser) yang sama, otomatis kembali ke halaman request ticket
+            try { localStorage.setItem('amcPesertaId', pendaftaranRecord.id); } catch(e) {}
+            alert('Registrasi Berhasil!');
+            switchStep('step-ticket');
+        }catch(err){
+            alert(err.message || err);
+            console.error(err);
+        }finally{
+            btn.disabled = false; btn.innerHTML = orig;
+        }
+    }
+
+    // ===== Sesi peserta tersimpan (device yang sama) =====
+    // Setelah Submit Data, ID peserta disimpan di localStorage. Jika jendela
+    // ditutup lalu dibuka lagi di device & browser yang sama, halaman otomatis
+    // kembali ke halaman request ticket (atau halaman hasil bila ujian selesai).
+    function clearPesertaSesi(){
+        try { localStorage.removeItem('amcPesertaId'); } catch(e) {}
+    }
+    // Set tampilan tombol request sesuai status terakhir peserta
+    function applyTicketStepState(u){
+        const btn = document.getElementById('btn-req');
+        if(!btn) return;
+        const s = u.status || '';
+        if(s === 'REQUESTING'){
+            btn.innerHTML = '⏳ MENUNGGU KODE DARI ADMIN...';
+            btn.className = 'btn btn-secondary w-100 mb-4 fw-bold';
+            btn.disabled = true;
+        } else if(s === 'APPROVED'){
+            btn.innerHTML = '✅ Tiket sudah diterbitkan Admin — segera masukkan kode di bawah (berlaku 2 menit)';
+            btn.className = 'btn btn-success w-100 mb-4 fw-bold';
+            btn.disabled = true;
+        } else if(s === 'COMPLETED'){
+            btn.innerHTML = '✅ Ujian sudah selesai';
+            btn.className = 'btn btn-success w-100 mb-4 fw-bold';
+            btn.disabled = true;
+        } else {
+            btn.innerHTML = '✋ REQUEST TICKET KE ADMIN';
+            btn.className = 'btn btn-warning w-100 mb-4 fw-bold';
+            btn.disabled = false;
+        }
+    }
+    async function restorePesertaSesi(){
+        let savedId = null;
+        try { savedId = localStorage.getItem('amcPesertaId'); } catch(e) {}
+        if(!savedId) return;
+        try{
+            const sb = window.supabaseClient || window._sb;
+            const { data, error } = await sb.from('peserta_ujian').select('*').eq('id', savedId).maybeSingle();
+            if(error || !data){ clearPesertaSesi(); return; }
+            pendaftaranRecord = data;
+            try { sessionStorage.setItem('mySessionId', data.id); } catch(e) {}
+
+            if(data.status === 'COMPLETED'){
+                // Ujian sudah selesai -> langsung tampilkan hasil
+                const passed = !!data.is_passed;
+                const t = document.getElementById('result-title');
+                t.innerText = passed ? 'LULUS' : 'TIDAK LULUS';
+                t.className = passed ? 'text-success fw-bold' : 'text-danger fw-bold';
+                document.getElementById('result-score').innerText = (data.score == null ? 0 : data.score);
+                document.getElementById('result-message').innerText = passed ? 'Selamat! Memenuhi syarat.' : 'Nilai dibawah standar.';
+                switchStep('step-result');
+                return;
+            }
+
+            // Kembali ke halaman request ticket dengan status tombol yang sesuai
+            applyTicketStepState(data);
+            const info = document.getElementById('ticketInfo');
+            if(info){
+                info.className = 'alert alert-secondary small py-2 text-start';
+                info.innerHTML = 'Melanjutkan sesi sebelumnya — <strong>'+esc(data.nama||'')+'</strong> ('+esc(data.perusahaan||'')+'). '
+                    + '<a href="#" onclick="clearPesertaSesi(); location.reload(); return false;">Keluar dari sesi ini</a>';
+            }
+            switchStep('step-ticket');
+        }catch(e){
+            clearPesertaSesi();
+        }
+    }
+
+    // Ambil perusahaan tersimpan dari database & tambahkan ke dropdown
+    async function muatPerusahaanFromDb(){
+        if(!window.amcFetchPerusahaanList) return;
+        const sel = document.getElementById('perusahaan');
+        if(!sel) return;
+        const list = await window.amcFetchPerusahaanList();
+        list.forEach(function(nama){
+            if(!nama) return;
+            const ada = Array.from(sel.options).some(function(o){ return o.text.trim().toLowerCase() === nama.toLowerCase(); });
+            if(!ada){
+                const opt = document.createElement('option');
+                opt.value = nama.replace(/\s+/g, '_').replace(/[^\w-]/g, '');
+                opt.text = nama;
+                sel.appendChild(opt);
+            }
+        });
+    }
+
     // Add event listeners for all elements after DOM is loaded
     document.addEventListener('DOMContentLoaded', function() {
         // Handler Peserta - Form Exam Submit
@@ -137,11 +431,23 @@
             finishExam(); // Hitung nilai
         });
 
+        // Cek No. KTP -> cari data pendaftaran TIM (halaman awal)
+        document.getElementById('btn-cek-ktp').addEventListener('click', cekKtp);
+        document.getElementById('inputKtp').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); cekKtp(); }
+        });
+
         // Button event listeners
-        document.getElementById('btn-register').addEventListener('click', registerUser);
+        document.getElementById('btn-register').addEventListener('click', submitRegistrasi);
         document.getElementById('btn-req').addEventListener('click', userRequestTicket);
         document.getElementById('btn-validate').addEventListener('click', validateTicket);
-        document.getElementById('btn-reload').addEventListener('click', function() { location.reload(); });
+        document.getElementById('btn-reload').addEventListener('click', function() { clearPesertaSesi(); location.reload(); });
+
+        // Jika pernah registrasi di device ini -> otomatis kembali ke halaman request ticket
+        restorePesertaSesi();
+
+        // Muat perusahaan tersimpan dari database ke dropdown
+        muatPerusahaanFromDb();
 
         // Tambah data perusahaan baru ke dropdown
         document.getElementById('btn-add-company').addEventListener('click', function () {
@@ -163,6 +469,14 @@
                 selectPerusahaan.value = Array.from(selectPerusahaan.options).find(opt => opt.text.trim().toLowerCase() === normalizedNew)?.value || '';
                 inputPerusahaan.value = '';
                 return;
+            }
+
+            // Simpan perusahaan baru ke database (tabel perusahaan_list) agar otomatis
+            // bertambah permanen & muncul di semua halaman/perangkat (non-blocking).
+            if(window.amcAddPerusahaan){
+                window.amcAddPerusahaan(namaPerusahaan).then(function(res){
+                    if(res && res.error){ console.warn('Gagal simpan perusahaan ke database:', res.error.message); }
+                });
             }
 
             const option = document.createElement('option');
